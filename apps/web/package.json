@@ -1,0 +1,21 @@
+{
+  "name": "@nothing-chat/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/main.js",
+  "types": "./dist/main.d.ts",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "typecheck": "tsc -b --pretty",
+    "clean": "tsc -b --clean"
+  },
+  "dependencies": {
+    "@nothing-chat/shared": "0.0.0"
+  },
+  "devDependencies": {
+    "vite": "^8.0.16"
+  }
+}

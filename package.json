@@ -1,0 +1,29 @@
+{
+  "name": "nothing-chat",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=8.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev:web",
+    "dev:server": "npm run dev --workspace @nothing-chat/server",
+    "dev:web": "npm run dev --workspace @nothing-chat/web",
+    "dev:shared": "npm run dev --workspace @nothing-chat/shared",
+    "db:generate": "npm run db:generate --workspace @nothing-chat/server",
+    "db:migrate": "npm run db:migrate --workspace @nothing-chat/server",
+    "db:seed:admin": "npm run db:seed:admin --workspace @nothing-chat/server",
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty",
+    "clean": "tsc -b --clean"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.2"
+  }
+}

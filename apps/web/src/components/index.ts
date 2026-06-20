@@ -1,0 +1,9 @@
+import '../app/x-app-shell.js';
+import './auth/x-login-form.js';
+import './auth/x-register-form.js';
+import './chats/x-chat-card.js';
+import './chats/x-chat-list.js';
+import './messages/x-message-bubble.js';
+import './messages/x-message-list.js';
+import './messages/x-message-composer.js';
+

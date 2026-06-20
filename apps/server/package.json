@@ -1,0 +1,32 @@
+{
+  "name": "@nothing-chat/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node ./dist/index.js",
+    "build": "tsc -b",
+    "db:generate": "drizzle-kit generate --config drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config drizzle.config.ts",
+    "db:seed:admin": "tsx src/db/seed-admin.ts",
+    "typecheck": "tsc -b --pretty",
+    "clean": "tsc -b --clean"
+  },
+  "dependencies": {
+    "@fastify/websocket": "^11.2.0",
+    "@nothing-chat/shared": "0.0.0",
+    "argon2": "^0.44.0",
+    "drizzle-orm": "^0.45.2",
+    "fastify": "^5.8.5",
+    "postgres": "^3.4.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.21",
+    "@types/ws": "^8.18.1",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.22.4"
+  }
+}
