@@ -7,6 +7,8 @@ export type ServerConfig = {
   port: number;
   logLevel: ServerLogLevel;
   websocketMaxPayloadBytes: number;
+  sessionCookieName: string;
+  sessionTtlDays: number;
 };
 
 type Environment = Record<string, string | undefined>;
@@ -15,6 +17,8 @@ const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 3000;
 const DEFAULT_LOG_LEVEL: ServerLogLevel = 'info';
 const DEFAULT_WEBSOCKET_MAX_PAYLOAD_BYTES = 64 * 1024;
+const DEFAULT_SESSION_COOKIE_NAME = 'nothing_chat_session';
+const DEFAULT_SESSION_TTL_DAYS = 30;
 const LOG_LEVELS = new Set<ServerLogLevel>([
   'fatal',
   'error',
@@ -41,7 +45,9 @@ export function readServerConfig(env: Environment = process.env): ServerConfig {
       env,
       'WS_MAX_PAYLOAD_BYTES',
       DEFAULT_WEBSOCKET_MAX_PAYLOAD_BYTES
-    )
+    ),
+    sessionCookieName: env.SESSION_COOKIE_NAME ?? DEFAULT_SESSION_COOKIE_NAME,
+    sessionTtlDays: readPositiveInteger(env, 'SESSION_TTL_DAYS', DEFAULT_SESSION_TTL_DAYS)
   };
 }
 
@@ -77,4 +83,3 @@ function readLogLevel(rawValue: string | undefined): ServerLogLevel {
 
   return normalizedValue as ServerLogLevel;
 }
-

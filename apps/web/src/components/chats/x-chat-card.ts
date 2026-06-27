@@ -1,4 +1,8 @@
 import type { ChatSummary } from '../../app/store.js';
+import { BUTTON_INTERACTION_CSS } from '../../utils/button-interactions.js';
+import type { AppContextMenuDetail } from '../context-menu/types.js';
+
+const LONG_PRESS_DELAY_MS = 550;
 
 /**
  * Renders one chat row and emits selection without owning list state.
@@ -9,6 +13,10 @@ export class XChatCard extends HTMLElement {
   private chat: ChatSummary | null = null;
 
   private selected = false;
+
+  private longPressTimer: number | null = null;
+
+  private suppressNextClick = false;
 
   /**
    * Updates the chat data and re-renders the row.
@@ -45,8 +53,17 @@ export class XChatCard extends HTMLElement {
     button.className = this.selected ? 'card is-active' : 'card';
     button.type = 'button';
     button.addEventListener('click', () => {
+      if (this.consumeSuppressedClick()) {
+        return;
+      }
+
       this.dispatchSelect();
     });
+    button.addEventListener('contextmenu', this.handleContextMenu);
+    button.addEventListener('pointerdown', this.handlePointerDown);
+    button.addEventListener('pointerup', this.cancelLongPress);
+    button.addEventListener('pointercancel', this.cancelLongPress);
+    button.addEventListener('pointerleave', this.cancelLongPress);
 
     const title = document.createElement('span');
     title.className = 'title';
@@ -60,13 +77,87 @@ export class XChatCard extends HTMLElement {
     lastMessage.className = 'last-message';
     lastMessage.textContent = this.chat.lastMessage;
 
-    const unread = document.createElement('span');
-    unread.className = 'unread';
-    unread.textContent = this.chat.unreadCount > 0 ? String(this.chat.unreadCount) : '';
-    unread.hidden = this.chat.unreadCount === 0;
+    button.append(title, time, lastMessage);
 
-    button.append(title, time, lastMessage, unread);
+    // Render the unread badge only when there is an actual unread counter to show.
+    if (this.chat.unreadCount > 0) {
+      const unread = document.createElement('span');
+      unread.className = 'unread';
+      unread.textContent = String(this.chat.unreadCount);
+      button.append(unread);
+    }
     this.root.replaceChildren(this.createStyles(), button);
+  }
+
+  /**
+   * Opens the chat command menu instead of the browser context menu.
+   */
+  private readonly handleContextMenu = (event: MouseEvent): void => {
+    event.preventDefault();
+    const point = this.getMenuPoint(event);
+    this.dispatchContextMenu(point.clientX, point.clientY);
+  };
+
+  /**
+   * Starts touch and pen long press handling for context actions.
+   */
+  private readonly handlePointerDown = (event: PointerEvent): void => {
+    if (event.pointerType === 'mouse') {
+      return;
+    }
+
+    this.cancelLongPress();
+    const { clientX, clientY } = event;
+    this.longPressTimer = window.setTimeout(() => {
+      this.longPressTimer = null;
+      this.suppressNextClick = true;
+      this.dispatchContextMenu(clientX, clientY);
+    }, LONG_PRESS_DELAY_MS);
+  };
+
+  /**
+   * Cancels pending long press detection when the gesture becomes a normal tap.
+   */
+  private readonly cancelLongPress = (): void => {
+    if (this.longPressTimer === null) {
+      return;
+    }
+
+    window.clearTimeout(this.longPressTimer);
+    this.longPressTimer = null;
+  };
+
+  /**
+   * Prevents the synthetic click after a successful long press from selecting the chat.
+   */
+  private consumeSuppressedClick(): boolean {
+    if (!this.suppressNextClick) {
+      return false;
+    }
+
+    this.suppressNextClick = false;
+    return true;
+  }
+
+  /**
+   * Uses pointer coordinates when available and falls back to the row bounds for keyboard context menus.
+   */
+  private getMenuPoint(event: MouseEvent): { clientX: number; clientY: number } {
+    if (event.clientX !== 0 || event.clientY !== 0) {
+      return {
+        clientX: event.clientX,
+        clientY: event.clientY
+      };
+    }
+
+    const target = event.currentTarget;
+    const element = target instanceof HTMLElement ? target : this;
+    const rect = element.getBoundingClientRect();
+
+    return {
+      clientX: rect.left + 12,
+      clientY: rect.top + 12
+    };
   }
 
   /**
@@ -89,22 +180,50 @@ export class XChatCard extends HTMLElement {
   }
 
   /**
+   * Emits the chat context menu request through Shadow DOM boundaries.
+   */
+  private dispatchContextMenu(clientX: number, clientY: number): void {
+    if (!this.chat) {
+      return;
+    }
+
+    const detail: AppContextMenuDetail = {
+      clientX,
+      clientY,
+      entity: {
+        type: 'chat',
+        chat: this.chat,
+        isActive: this.selected
+      }
+    };
+
+    this.dispatchEvent(
+      new CustomEvent<AppContextMenuDetail>('app-context-menu', {
+        bubbles: true,
+        composed: true,
+        detail
+      })
+    );
+  }
+
+  /**
    * Defines the compact row layout used by the chat list.
    */
   private createStyles(): HTMLStyleElement {
     const style = document.createElement('style');
     style.textContent = `
       .card {
+        cursor: pointer;
         width: 100%;
-        min-height: 68px;
+        min-height: 56px;
         display: grid;
         grid-template-columns: 1fr auto;
         grid-template-rows: auto auto;
         gap: 2px 10px;
         align-items: center;
         border: 0;
-        border-radius: var(--radius-md);
-        padding: 10px 12px;
+        border-radius: 0;
+        padding: 8px 16px;
         color: var(--color-text);
         background: transparent;
         text-align: left;
@@ -149,6 +268,8 @@ export class XChatCard extends HTMLElement {
         font-size: 12px;
         font-weight: 700;
       }
+
+      ${BUTTON_INTERACTION_CSS}
     `;
 
     return style;
@@ -156,4 +277,3 @@ export class XChatCard extends HTMLElement {
 }
 
 customElements.define('x-chat-card', XChatCard);
-

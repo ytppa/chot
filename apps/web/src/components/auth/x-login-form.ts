@@ -1,13 +1,41 @@
+import { BUTTON_INTERACTION_CSS } from '../../utils/button-interactions.js';
+
 export type LoginFormSubmitDetail = {
   login: string;
   password: string;
 };
+
+type DebugLoginPreset = {
+  label: string;
+  login: string;
+  password: string;
+};
+
+const DEBUG_LOGIN_PRESETS: DebugLoginPreset[] = [
+  {
+    label: 'admin',
+    login: 'admin',
+    password: 'admin'
+  },
+  {
+    label: 'user1',
+    login: 'user1',
+    password: 'user'
+  },
+  {
+    label: 'user2',
+    login: 'user2',
+    password: 'user'
+  }
+];
 
 /**
  * Renders the login form and emits credentials without knowing auth transport details.
  */
 export class XLoginForm extends HTMLElement {
   private readonly root = this.attachShadow({ mode: 'open' });
+
+  private submitLocked = false;
 
   /**
    * Renders the form when the element enters the document.
@@ -29,34 +57,80 @@ export class XLoginForm extends HTMLElement {
     const title = document.createElement('h2');
     title.textContent = 'Вход';
 
+    const debugLoginPanel = this.createDebugLoginPanel();
     const loginInput = this.createInput('login', 'Логин', 'text');
     const passwordInput = this.createInput('password', 'Пароль', 'password');
 
     const submitButton = document.createElement('button');
-    submitButton.type = 'submit';
+    submitButton.type = 'button';
     submitButton.textContent = 'Войти';
+    submitButton.addEventListener('click', () => {
+      this.submitForm(form);
+    });
+    submitButton.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      this.submitForm(form);
+    });
 
-    form.append(title, loginInput.wrapper, passwordInput.wrapper, submitButton);
+    form.append(title);
+    if (debugLoginPanel) {
+      form.append(debugLoginPanel);
+    }
+    form.append(loginInput, passwordInput, submitButton);
     this.root.replaceChildren(this.createStyles(), form);
   }
 
   /**
-   * Creates one labeled input group for auth fields.
+   * Creates local development shortcuts for quickly switching between seeded users.
    */
-  private createInput(name: string, labelText: string, type: string): { wrapper: HTMLLabelElement } {
-    const wrapper = document.createElement('label');
-    const label = document.createElement('span');
+  private createDebugLoginPanel(): HTMLElement | null {
+    if (!import.meta.env.DEV) {
+      return null;
+    }
+
+    const panel = document.createElement('div');
+    panel.className = 'debug-logins';
+    panel.setAttribute('aria-label', 'Быстрый вход');
+
+    for (const preset of DEBUG_LOGIN_PRESETS) {
+      panel.append(this.createDebugLoginButton(preset));
+    }
+
+    return panel;
+  }
+
+  /**
+   * Creates one debug login shortcut that reuses the normal auth event contract.
+   */
+  private createDebugLoginButton(preset: DebugLoginPreset): HTMLButtonElement {
+    const button = document.createElement('button');
+    button.className = 'debug-login-button';
+    button.type = 'button';
+    button.textContent = preset.label;
+    button.addEventListener('click', () => {
+      this.submitCredentials({
+        login: preset.login,
+        password: preset.password
+      });
+    });
+
+    return button;
+  }
+
+  /**
+   * Creates one compact auth input with placeholder text instead of a visible label.
+   */
+  private createInput(name: string, labelText: string, type: string): HTMLInputElement {
     const input = document.createElement('input');
 
-    label.textContent = labelText;
     input.name = name;
     input.type = type;
+    input.placeholder = labelText;
+    input.setAttribute('aria-label', labelText);
     input.required = true;
     input.autocomplete = name === 'password' ? 'current-password' : 'username';
 
-    wrapper.append(label, input);
-
-    return { wrapper };
+    return input;
   }
 
   /**
@@ -64,16 +138,46 @@ export class XLoginForm extends HTMLElement {
    */
   private handleSubmit(event: SubmitEvent): void {
     event.preventDefault();
+    this.submitForm(event.currentTarget as HTMLFormElement);
+  }
 
-    const formData = new FormData(event.currentTarget as HTMLFormElement);
+  /**
+   * Reads credentials and emits them to the app shell.
+   */
+  private submitForm(form: HTMLFormElement): void {
+    if (this.submitLocked) {
+      return;
+    }
+
+    if (!form.reportValidity()) {
+      return;
+    }
+
+    const formData = new FormData(form);
+    this.submitCredentials({
+      login: String(formData.get('login') ?? ''),
+      password: String(formData.get('password') ?? '')
+    });
+  }
+
+  /**
+   * Emits the normalized credentials and briefly locks repeated submissions.
+   */
+  private submitCredentials(detail: LoginFormSubmitDetail): void {
+    if (this.submitLocked) {
+      return;
+    }
+
+    this.submitLocked = true;
+    window.setTimeout(() => {
+      this.submitLocked = false;
+    }, 750);
+
     this.dispatchEvent(
       new CustomEvent<LoginFormSubmitDetail>('auth-login-submit', {
         bubbles: true,
         composed: true,
-        detail: {
-          login: String(formData.get('login') ?? ''),
-          password: String(formData.get('password') ?? '')
-        }
+        detail
       })
     );
   }
@@ -89,17 +193,32 @@ export class XLoginForm extends HTMLElement {
         gap: 14px;
       }
 
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
       h2 {
         margin: 0 0 4px;
         font-size: 20px;
         line-height: 1.2;
       }
 
-      label {
+      .debug-logins {
         display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 6px;
+      }
+
+      .debug-login-button {
+        min-height: 30px;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        padding: 4px 8px;
         color: var(--color-text-muted);
-        font-size: 13px;
+        background: var(--color-panel);
+        font-size: 12px;
       }
 
       input {
@@ -113,6 +232,8 @@ export class XLoginForm extends HTMLElement {
       }
 
       button {
+        cursor: pointer;
+        justify-self: start;
         min-height: 40px;
         border: 0;
         border-radius: var(--radius-sm);
@@ -120,6 +241,12 @@ export class XLoginForm extends HTMLElement {
         color: #fff;
         background: var(--color-accent);
       }
+
+      button:disabled {
+        cursor: default;
+      }
+
+      ${BUTTON_INTERACTION_CSS}
     `;
 
     return style;
@@ -127,4 +254,3 @@ export class XLoginForm extends HTMLElement {
 }
 
 customElements.define('x-login-form', XLoginForm);
-

@@ -1,8 +1,8 @@
-﻿# Nothing Chat - Context Handoff
+# Nothing Shhh - Context Handoff
 
-Дата контекста: 2026-06-20
+Дата контекста: 2026-06-21
 Основная рабочая папка: `C:\Games\MySandbox`
-Папка будущего проекта: `C:\Games\MySandbox\nothing-chat`
+Папка проекта: `C:\Games\MySandbox\nothing-chat`
 
 Этот файл нужен как пакет передачи контекста новому Codex-чату. Он фиксирует не только желаемый функционал, но и уже принятые архитектурные решения, причины этих решений и локальные нюансы окружения.
 
@@ -13,9 +13,9 @@
 - Старый путь больше не трогать: это отдельная копия, не связанная с `C:\Games\MySandbox`.
 - Визуальная привязка старых Codex-thread в sidebar может по-прежнему показывать `Ничтофон`, потому что thread хранит исходный workspace/root path. Это не значит, что надо продолжать писать туда.
 - В новом пути Git был добавлен в `safe.directory`.
-- На момент сообщения из соседнего чата: ветка `master`, рабочее дерево чистое, последний коммит `7ad12ca Preparation for paring mode`, `git remote -v` пустой.
-- Перед push нужно восстановить remote: `origin` должен указывать на `ytppa/heartwidget`.
-- Нужно отдельно решить, продолжаем на `master` или возвращаем/переименовываем ветку в `main`.
+- Текущий Git remote: `https://github.com/ytppa/chot.git`.
+- Основная ветка проекта: `main`.
+- Перед push проверять `git status`, потому что в проекте может идти активная разработка с незакоммиченными изменениями.
 
 ## Цель Проекта
 
@@ -459,7 +459,7 @@ Telegram Web K:
 - Есть IndexedDB/localStorage snapshots.
 - Есть flags вроде `noSharedWorker=1`, `debug=1`.
 
-Выводы для Nothing Chat:
+Выводы для Nothing Shhh:
 
 - Не нужен тяжелый фреймворк ради фреймворка.
 - Критичны realtime state, аккуратный cache, виртуализация сообщений и единый overlay/popup слой.
@@ -479,6 +479,8 @@ C:\Games\OSPanel
 - `C:\Games\OSPanel\modules\Nginx-1.26\conf\nginx.conf` содержит `map $http_upgrade $connection_upgrade`.
 - `virtual_proxied_host.conf` содержит `proxy_set_header Upgrade $http_upgrade` и `proxy_set_header Connection $connection_upgrade`.
 - Значит WebSocket через Nginx reverse proxy в OSP должен работать.
+- Для Nothing Shhh настроен отдельный OSP project/proxy `chat.local`; существующие OSP-домены не используются как часть этой настройки.
+- Настройка воспроизводится через `scripts/configure-osp-chat-local.ps1`.
 
 Dev-вариант 1, самый простой:
 
@@ -488,14 +490,26 @@ Dev-вариант 1, самый простой:
 
 Dev-вариант 2, ближе к production:
 
-- Домен: `https://nothing-chat.local`.
-- Nginx OSP проксирует `/api` и `/ws` на Node.
-- WebSocket: `wss://nothing-chat.local/ws`.
+- Домен: `https://chat.local`.
+- Nginx OSP проксирует `/` на Vite `127.0.0.1:5173`.
+- Nginx OSP проксирует `/api`, `/health` и `/ws` на Node/Fastify `127.0.0.1:3000`.
+- WebSocket: `wss://chat.local/ws`.
+- HTTP fallback для локальной проверки: `http://chat.local`.
+
+Созданные OSP-файлы:
+
+- OSP project: `C:\Games\OSPanel\home\chat.local`.
+- Project config: `C:\Games\OSPanel\home\chat.local\.osp\project.ini`.
+- Nginx include: `C:\Games\OSPanel\user\nginx\chat.local.conf`.
+- Nginx template содержит include для `chat.local`, потому что OSP пересобирает активный `nginx.conf` при рестарте.
+- Hosts содержит отдельный блок `NOTHING CHAT` для `chat.local` и `www.chat.local` на `127.127.126.55`.
+- Существующие OSP hosts-записи остаются на своем IP `127.127.126.30`; настройка Nothing Shhh добавлена отдельным блоком.
 
 Важный нюанс:
 
 - Если страница открыта по `https://`, браузер может блокировать `ws://` как mixed content.
 - Для HTTPS-страницы нужен `wss://`.
+- HTTPS использует локальный OSP certificate `CN=chat.local`; если браузер не доверяет OSP root certificate, доверие нужно добавлять отдельно и осознанно.
 
 Пример Nginx location:
 
@@ -516,7 +530,7 @@ OSP 6 проекты:
 - Node запускается через `node_engine` и `start_command`.
 - Документация говорит, что NVM в OSP управляется через `osp node ...`, а запуск приложения задается параметром `start_command`.
 
-Для этого проекта лучше сначала держать исходники в `C:\Games\MySandbox\nothing-chat`, а для OSP позже сделать домен/ссылку или отдельную конфигурацию прокси.
+Для этого проекта исходники остаются в `C:\Games\MySandbox\nothing-chat`, а OSP project используется как доменная оболочка и reverse proxy.
 
 ## Безопасность MVP
 
@@ -545,7 +559,7 @@ OSP 6 проекты:
 3. Создать health endpoint и `/ws` echo/ping.
 4. Создать `apps/web` на Vite TypeScript без React.
 5. Сделать `x-app-shell`, `x-login-form`, `x-chat-list`, `x-message-list`.
-6. Подключить PostgreSQL через docker-compose или OpenServer PostgreSQL.
+6. Подключить PostgreSQL через portable runtime или Docker Compose.
 7. Описать Drizzle schema и первую миграцию.
 8. Сделать seed admin.
 9. Реализовать register/login/logout/me.
@@ -553,15 +567,20 @@ OSP 6 проекты:
 11. Реализовать direct chats и message.send через WebSocket.
 12. Добавить linkify renderer.
 13. Добавить единый context menu root.
-14. Подключить OSP/Nginx proxy для `wss://` сценария.
+14. Подключить OSP/Nginx proxy для `wss://` сценария: выполнено для `chat.local`.
 
 ## Открытые Вопросы
 
-- Какой окончательный домен для OpenServer: `nothing-chat.local`, `chat.local` или другой.
-- Использовать PostgreSQL из OpenServer или docker-compose.
-- Оставлять monorepo внутри текущего repo `heartwidget` или сделать новый Git remote.
-- Вернуть ветку `main` или продолжить `master`.
 - Нужна ли Lit после первого MVP или держим ручные custom elements.
+
+## Решенные Вопросы
+
+- Локальный домен Open Server Panel: `chat.local`.
+- Проект выделен в отдельный Git remote `https://github.com/ytppa/chot.git`.
+- Основная ветка проекта: `main`.
+- PostgreSQL для локальной разработки на текущем хосте: portable PostgreSQL 17.10 в `.local`.
+- Docker Compose сохранен как опциональный будущий путь через `db:docker:*`.
+- В текущей установке Open Server Panel нет PostgreSQL-модуля, поэтому OSP используется как локальный Nginx/HTTPS/WSS proxy.
 
 ## Команды Для Проверки Нового Пути
 

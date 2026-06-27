@@ -7,7 +7,15 @@ export default defineConfig({
   server: {
     host: '127.0.0.1',
     port: 5173,
-    strictPort: false
+    strictPort: false,
+    allowedHosts: ['127.0.0.1', 'localhost', 'chat.local'],
+    proxy: {
+      '/api': 'http://127.0.0.1:3000',
+      '/ws': {
+        target: 'ws://127.0.0.1:3000',
+        ws: true
+      }
+    }
   },
   preview: {
     host: '127.0.0.1',
@@ -15,4 +23,3 @@ export default defineConfig({
     strictPort: false
   }
 });
-

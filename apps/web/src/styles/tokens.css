@@ -35,12 +35,14 @@
 html,
 body {
   min-width: 320px;
-  min-height: 100%;
+  width: 100%;
+  height: 100%;
   margin: 0;
+  overflow: hidden;
 }
 
 body {
-  min-height: 100vh;
+  height: 100vh;
 }
 
 button,
@@ -51,10 +53,35 @@ textarea {
 
 button {
   cursor: pointer;
+  transition:
+    filter 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease;
+}
+
+button:not(:disabled):hover {
+  filter: brightness(0.96);
+}
+
+button:focus {
+  outline: none;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 x-app-shell {
   display: block;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
+@supports (height: 100dvh) {
+  body,
+  x-app-shell {
+    height: 100dvh;
+  }
+}

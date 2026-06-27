@@ -12,16 +12,20 @@
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config drizzle.config.ts",
     "db:seed:admin": "tsx src/db/seed-admin.ts",
+    "db:seed:date-demo": "tsx src/db/seed-date-demo.ts",
+    "test": "tsx --test test/*.test.ts",
     "typecheck": "tsc -b --pretty",
     "clean": "tsc -b --clean"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.0.2",
     "@fastify/websocket": "^11.2.0",
     "@nothing-chat/shared": "0.0.0",
     "argon2": "^0.44.0",
     "drizzle-orm": "^0.45.2",
     "fastify": "^5.8.5",
-    "postgres": "^3.4.9"
+    "postgres": "^3.4.9",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^22.19.21",

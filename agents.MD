@@ -1,6 +1,6 @@
-# Nothing Chat - Agent Guidelines
+# Nothing Shhh - Agent Guidelines
 
-Этот файл фиксирует правила для Codex/агентов, работающих над проектом Nothing Chat.
+Этот файл фиксирует правила для Codex/агентов, работающих над проектом Nothing Shhh.
 README содержит подробный контекст, а здесь собраны принципиальные решения, которых нужно придерживаться при разработке.
 
 ## Рабочая папка
@@ -165,6 +165,12 @@ async function resolveCurrentUser(request: FastifyRequest): Promise<AuthUser | n
 - Миграции должны быть проверяемыми и воспроизводимыми.
 - Индексы и уникальные ограничения добавлять вместе с сущностями, для которых они принципиальны.
 - Не хранить вычисляемое UI-состояние в БД без необходимости.
+- Для текущего локального PostgreSQL использовать portable runtime через `scripts/pg-portable.ps1` и команды `npm run db:*`.
+- Runtime-файлы portable PostgreSQL держать в `.local`; эта папка не должна попадать в Git.
+- Docker Compose из `docker-compose.yml` оставлен как опциональный будущий путь через `db:docker:*`.
+- Open Server Panel в текущей установке не содержит PostgreSQL-модуль; OSP использовать как локальный Nginx/HTTPS/WSS proxy, не как runtime БД.
+- Перед повторной установкой Docker Desktop проверять требования хоста: Windows 10 22H2 build 19045+ и современный WSL, где `wsl --version` показывает версии компонентов.
+- Если хост ниже требований Docker Desktop, не повторять установку по кругу без решения пользователя: использовать portable PostgreSQL или сначала согласовать обновление Windows/WSL.
 
 ## WebSocket протокол
 
@@ -179,6 +185,11 @@ async function resolveCurrentUser(request: FastifyRequest): Promise<AuthUser | n
 - Первый экран должен быть рабочим интерфейсом, а не лендингом.
 - Интерфейс чата должен быть спокойным, плотным и удобным для повторного использования.
 - Не перегружать MVP декоративными элементами.
+- Для иконок использовать локальные Font Awesome Free SVG из `apps/web/public/vendor/fontawesome`, без CDN и внешних runtime-загрузок.
+- В компонентах подключать Font Awesome через общий helper `apps/web/src/utils/fontawesome.ts`, чтобы пути к SVG и mask-стили не размазывались по коду.
+- Для кнопок держать единое поведение: hover слегка затемняет кнопку, keyboard focus показывается через заметный outline.
+- Админские frontend flows по возможности держать отдельно от общего app shell: API orchestration и state updates выносить в специализированные app controllers, а `x-app-shell` оставлять для композиции UI.
+- В мобильной версии возврат из ленты к списку чатов должен закрывать active chat на уровне состояния, а не только скрывать ленту CSS-ом; скрытая лента не должна получать новые сообщения и не должна вызывать read marks.
 - Для длинных списков сообщений заранее держать в голове будущую виртуализацию.
 - Контент не должен прыгать при hover, loading states или изменении счетчиков.
 
@@ -187,11 +198,14 @@ async function resolveCurrentUser(request: FastifyRequest): Promise<AuthUser | n
 - `README.md` хранит большой контекст, причины решений и справочную информацию.
 - `agents.MD` хранит принципиальные правила для агентов: стек, архитектурные границы, безопасность и стиль работы.
 - `PLAN.md` хранит актуальный план разработки, статусы этапов и ближайший фокус.
+- `IMPLEMENTATION.md` хранит описание фактически реализованной системы: стек, API, DB, frontend/backend логику и текущие ограничения.
 - Если в ходе работы появляется новый принципиальный момент, который должен влиять на будущие решения, добавлять его в `agents.MD`.
+- Если меняется реализованный стек, HTTP API, WebSocket API, схема БД, auth/session логика, frontend component contract или важное ограничение, обновлять `IMPLEMENTATION.md` в той же задаче.
 - Если начинается, завершается, блокируется или откладывается значимый этап, обновлять статус в `PLAN.md` в той же задаче.
-- Не дублировать все подряд между документами: README объясняет контекст, `agents.MD` задает правила, `PLAN.md` отслеживает движение.
+- Не дублировать все подряд между документами: README объясняет контекст, `agents.MD` задает правила, `PLAN.md` отслеживает движение, `IMPLEMENTATION.md` описывает фактическую реализацию.
 - Перед началом крупной задачи сверяться с `PLAN.md`, а перед завершением проверять, нужно ли скорректировать статусы.
 - Не оставлять план устаревшим после изменений в структуре, стеке или очередности разработки.
+- Не оставлять `IMPLEMENTATION.md` устаревшим после изменений в API, DB schema или поведении auth/admin/chat flows.
 
 ## Сомнения по реализации
 
@@ -202,8 +216,15 @@ async function resolveCurrentUser(request: FastifyRequest): Promise<AuthUser | n
 ## Open Server Panel
 
 - Источник проекта пока держать в `C:\Games\MySandbox\nothing-chat`.
-- OSP/Nginx подключать позже через домен или proxy-конфигурацию.
+- Локальный домен OSP/Nginx для проекта: `chat.local`.
+- Настройку `chat.local` вести через `scripts/configure-osp-chat-local.ps1`.
+- OSP project для домена лежит в `C:\Games\OSPanel\home\chat.local`.
+- Nginx proxy для домена лежит в `C:\Games\OSPanel\user\nginx\chat.local.conf`.
+- Так как OSP пересобирает активный `nginx.conf` при рестарте, include для `chat.local` должен быть закреплен в template `C:\Games\OSPanel\config\Nginx-1.26\default\templates\nginx.conf`.
+- Не менять существующие OSP-домены и их hosts-записи без явного запроса пользователя.
+- Для `chat.local` Nginx проксирует `/` на Vite, а `/api`, `/health` и `/ws` на Fastify.
 - Если страница открыта по HTTPS, WebSocket должен быть `wss://`, а не `ws://`.
+- Если браузер не доверяет локальному сертификату `chat.local`, не добавлять OSP root CA в Windows certificate store без отдельного согласия пользователя.
 
 ## Перед завершением задачи
 
