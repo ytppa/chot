@@ -13,13 +13,45 @@ x-app-shell {
 
   .brand {
     display: flex;
-    align-items: baseline;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
 
     span {
       color: var(--color-text-muted);
       font-size: 12px;
+    }
+  }
+
+  .brand-meta {
+    min-width: 0;
+    display: grid;
+    justify-items: end;
+    gap: 6px;
+  }
+
+  .brand-status {
+    max-width: 150px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .theme-select {
+    min-height: 30px;
+    max-width: 128px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 0 8px;
+    color: var(--color-text);
+    background: var(--color-panel);
+    font: inherit;
+    font-size: 12px;
+
+    &:focus-visible {
+      outline: 0;
+      border-color: var(--color-accent);
+      box-shadow: 0 0 0 2px var(--color-accent-soft);
     }
   }
 
@@ -71,7 +103,7 @@ x-app-shell {
 
   .auth-action.is-primary {
     border-color: var(--color-accent);
-    color: #fff;
+    color: var(--color-on-accent);
     background: var(--color-accent);
   }
 
@@ -197,7 +229,7 @@ x-app-shell {
 
   .pending-user-approve {
     border: 0;
-    color: #fff;
+    color: var(--color-on-accent);
     background: var(--color-accent);
   }
 

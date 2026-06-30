@@ -23,6 +23,12 @@ import type { MessageListScrollAnchor, XMessageList } from '../components/messag
 import { ApiClient, ApiClientError } from '../services/api-client.js';
 import { WebSocketClient, type WebSocketConnectionState } from '../services/ws-client.js';
 import { createFontAwesomeIcon } from '../utils/fontawesome.js';
+import {
+  initializeThemePreference,
+  isThemePreference,
+  setThemePreference,
+  type ThemePreference
+} from '../utils/theme.js';
 import { createUuid } from '../utils/uuid.js';
 import { AdminApprovalsController } from './admin-approvals-controller.js';
 
@@ -85,6 +91,8 @@ export class XAppShell extends HTMLElement {
   private mobilePane: MobilePane = 'chats';
 
   private activeModal: AppModalOptions | null = null;
+
+  private themePreference: ThemePreference = initializeThemePreference();
 
   private chatSearchQuery = '';
 
@@ -223,10 +231,15 @@ export class XAppShell extends HTMLElement {
     const title = document.createElement('h1');
     title.textContent = 'Nothing Shhh';
 
+    const meta = document.createElement('div');
+    meta.className = 'brand-meta';
+
     const status = document.createElement('span');
+    status.className = 'brand-status';
     status.textContent = state.statusText;
 
-    brand.append(title, status);
+    meta.append(status, this.createThemeSelect());
+    brand.append(title, meta);
 
     const authPanel = this.createAuthPanel(state);
     const adminApprovalPanel = state.currentUser?.role === 'admin' ? this.createAdminApprovalPanel(state) : null;
@@ -244,6 +257,29 @@ export class XAppShell extends HTMLElement {
     }
 
     return sidebar;
+  }
+
+  /**
+   * Creates a native theme selector that stores only local UI preference.
+   */
+  private createThemeSelect(): HTMLSelectElement {
+    const select = document.createElement('select');
+    select.className = 'theme-select';
+    select.title = 'Тема';
+    select.setAttribute('aria-label', 'Тема');
+    select.append(
+      createThemeOption('system', 'Система'),
+      createThemeOption('light', 'Светлая'),
+      createThemeOption('dark', 'Темная')
+    );
+    select.value = this.themePreference;
+    select.addEventListener('change', () => {
+      const nextPreference = isThemePreference(select.value) ? select.value : 'system';
+      this.themePreference = nextPreference;
+      setThemePreference(nextPreference);
+    });
+
+    return select;
   }
 
   /**
@@ -1627,6 +1663,17 @@ function base64UrlToBytes(value: string): number[] | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Builds one native select option for the local theme preference control.
+ */
+function createThemeOption(value: ThemePreference, label: string): HTMLOptionElement {
+  const option = document.createElement('option');
+  option.value = value;
+  option.textContent = label;
+
+  return option;
 }
 
 customElements.define('x-app-shell', XAppShell);

@@ -3,7 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <title>Nothing Shhh</title>
+    <script>
+      (() => {
+        const key = 'nothing-chat.theme-preference';
+
+        try {
+          const value = window.localStorage.getItem(key);
+          if (value === 'light' || value === 'dark') {
+            document.documentElement.dataset.theme = value;
+            return;
+          }
+
+          document.documentElement.removeAttribute('data-theme');
+        } catch {
+          document.documentElement.removeAttribute('data-theme');
+        }
+      })();
+    </script>
   </head>
   <body>
     <x-app-shell></x-app-shell>

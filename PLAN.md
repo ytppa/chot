@@ -1,6 +1,6 @@
 # Nothing Shhh - Development Plan
 
-Дата актуализации: 2026-06-28
+Дата актуализации: 2026-06-30
 
 Этот файл нужен как живой план разработки. Он должен отражать текущее состояние проекта, ближайший фокус и статус крупных этапов.
 
@@ -42,6 +42,7 @@
 - `DONE` Open Server Panel proxy для `chat.local` настроен: `/` идет на Vite, `/api`, `/health` и `/ws` идут на Fastify; HTTP/WS и HTTPS/WSS проверены.
 - `DONE` Admin approval UI добавлен в sidebar: админ может открыть список pending users, подтвердить или отклонить заявку.
 - `DONE` Frontend styles migrated from component `createStyles()` blocks to Sass partials; main UI components now use light DOM, `x-context-menu-root` keeps Shadow DOM isolation.
+- `DONE` CSS-first темизация интерфейса добавлена: системная тема работает через `prefers-color-scheme`, ручной выбор `light`/`dark` хранится локально в браузере.
 
 ## Ближайший Фокус
 
@@ -63,6 +64,7 @@
 16. `DONE` Этап 10: targeted tests для auth, sessions, admin approve/reject и WebSocket message send добавлены; ручной smoke базового user flow пройден.
 17. `DONE` Этап 11: frontend-пагинация истории сообщений по 50 с догрузкой старых страниц при прокрутке вверх.
 18. `DONE` Этап 12: визуальная логика ленты сообщений - группировка соседних сообщений, date-разделители, sticky текущая дата, правое выравнивание исходящих сообщений и max-width 720px для chat-колонки.
+19. `DONE` Этап 13: CSS-first темизация интерфейса с системным режимом и ручным выбором светлой/темной темы.
 
 ## Этап 1 - Каркас Проекта
 
@@ -180,6 +182,13 @@
 - `DONE` Добавить сервисные date-разделители по календарным дням и сделать текущий верхний разделитель sticky внутри ленты.
 - `DONE` Выравнивать свои исходящие сообщения по правому краю.
 - `DONE` Ограничить общую ширину ленты и composer до 720px.
+
+## Этап 13 - Темизация Интерфейса
+
+- `DONE` Вынести светлую и темную палитру в CSS custom properties в `apps/web/src/styles/_tokens.scss`.
+- `DONE` Оставить системный режим нативным через `prefers-color-scheme` без backend-состояния.
+- `DONE` Добавить ручной выбор `light`/`dark` через root `data-theme` и локальное хранение предпочтения в `localStorage`.
+- `DONE` Добавить компактный native select темы в `x-app-shell` без отдельной UI-библиотеки.
 
 ## Отложено
 

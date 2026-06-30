@@ -15,10 +15,13 @@ body {
 
 body {
   height: 100vh;
+  color: var(--color-text);
+  background: var(--color-bg);
 }
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }

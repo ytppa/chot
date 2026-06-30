@@ -54,7 +54,7 @@ x-app-shell {
     grid-template-rows: minmax(0, 1fr) auto;
     justify-items: stretch;
     overflow: hidden;
-    background: #f7f9fc;
+    background: var(--color-chat-bg);
   }
 
   .composer-column {

@@ -1,6 +1,6 @@
 # Nothing Shhh - implementation notes
 
-Дата актуализации: 2026-06-28
+Дата актуализации: 2026-06-30
 
 Этот документ описывает уже реализованную часть проекта: стек, структуру, API, основные правила логики и известные ограничения.
 План будущих работ ведется в `PLAN.md`, а архитектурные правила для агентов - в `agents.MD`.
@@ -12,6 +12,7 @@ Frontend:
 - TypeScript.
 - Vite.
 - Sass.
+- CSS custom properties для theme tokens и ручных override-ов темы.
 - Native Web Components.
 - Основные UI-компоненты рендерятся в light DOM и стилизуются через `apps/web/src/styles/index.scss`.
 - Shadow DOM оставлен точечно для `x-context-menu-root`, где нужна изоляция overlay-слоя.
@@ -613,6 +614,7 @@ Utils:
 
 ```text
 apps/web/src/utils/linkify.ts
+apps/web/src/utils/theme.ts
 apps/web/src/utils/uuid.ts
 ```
 
@@ -650,6 +652,10 @@ apps/server/test/http-ws.test.ts
 - Основные UI-компоненты используют light DOM; Shadow DOM сейчас оставлен у `x-context-menu-root` как изолированный overlay-слой.
 - События из компонентов отправляются с `bubbles: true` и `composed: true`, если должны доходить до shell или проходить через возможные Shadow DOM границы.
 - Стили основного UI собираются из Sass partials через `apps/web/src/styles/index.scss`; компонентные `createStyles()` блоки убраны из app shell, форм, списка чатов, ленты, баблов и composer.
+- Темизация реализована CSS-first: светлая и темная палитры живут в `apps/web/src/styles/_tokens.scss`, системный режим использует `prefers-color-scheme`, а ручные `light`/`dark` override-ы применяются через `data-theme` на `document.documentElement`.
+- Предпочтение темы хранится только в браузере через `apps/web/src/utils/theme.ts` и ключ `nothing-chat.theme-preference`; выбор `system` очищает ручной override и не требует backend-состояния.
+- `apps/web/index.html` применяет сохраненную ручную тему inline-скриптом до загрузки app bundle, чтобы уменьшить first-paint flash; для native controls объявлен `color-scheme: light dark`.
+- В `x-app-shell` есть компактный native select темы с вариантами `Система`, `Светлая`, `Темная`.
 - Иконки подключены локально через Font Awesome Free SVG subset в `apps/web/public/vendor/fontawesome`; mask-стили живут в `apps/web/src/styles/_icons.scss`, а helper `apps/web/src/utils/fontawesome.ts` создает декоративные DOM-узлы без CDN.
 - Общие button interactions вынесены в глобальный SCSS для light DOM; `apps/web/src/utils/button-interactions.ts` остается только для оставшихся Shadow DOM кнопок context menu.
 - В приложении есть единый `x-context-menu-root`; дочерние компоненты открывают его через `app-context-menu`, а выбранные команды возвращаются в shell через `app-menu-command`.

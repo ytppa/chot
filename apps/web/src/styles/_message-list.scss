@@ -53,7 +53,7 @@ x-message-list {
 
   .date-divider time {
     display: block;
-    border: 1px solid rgb(148 163 184 / 24%);
+    border: 1px solid var(--color-date-divider-border);
     border-radius: 999px;
     padding: 4px 10px;
     color: var(--color-text-muted);
@@ -104,9 +104,9 @@ x-message-list {
     border: 0;
     border-radius: 999px;
     padding: 0;
-    color: #fff;
+    color: var(--color-on-accent);
     background: var(--color-accent);
-    box-shadow: 0 8px 24px rgb(15 23 42 / 18%);
+    box-shadow: var(--shadow-floating);
   }
 
   .jump-to-bottom .fa-icon {

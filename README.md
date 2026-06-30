@@ -17,6 +17,7 @@ The current MVP focuses on private text conversations: registration, login, manu
 - Optimistic outgoing messages with `clientNonce` deduplication.
 - WebSocket reconnect with heartbeat/watchdog checks.
 - Plain text messages with safe link rendering.
+- System, light, and dark theme modes stored locally in the browser.
 - Native Web Components frontend without React.
 - Local Font Awesome SVG icons without CDN dependencies.
 
@@ -27,6 +28,7 @@ Frontend:
 - TypeScript.
 - Vite.
 - Sass.
+- CSS custom properties for theme tokens.
 - Native Web Components.
 - Light DOM for the main UI.
 - Shadow DOM only where isolation is useful, such as the floating command menu.

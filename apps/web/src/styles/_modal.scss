@@ -6,7 +6,7 @@ x-app-shell {
     display: grid;
     place-items: center;
     padding: 18px;
-    background: rgb(24 32 42 / 34%);
+    background: var(--color-overlay);
   }
 
   .modal-layer[hidden] {
@@ -79,13 +79,13 @@ x-app-shell {
 
   .modal-action.is-primary {
     border-color: var(--color-accent);
-    color: #fff;
+    color: var(--color-on-accent);
     background: var(--color-accent);
   }
 
   .modal-action.is-danger {
     border-color: var(--color-danger);
-    color: #fff;
+    color: var(--color-on-danger);
     background: var(--color-danger);
   }
 

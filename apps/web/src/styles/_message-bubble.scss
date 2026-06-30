@@ -76,14 +76,14 @@ x-message-bubble {
   .message-time {
     float: right;
     margin: 4px 0 -1px 8px;
-    color: rgb(102 113 126 / 72%);
+    color: var(--color-message-time);
     font-size: 11px;
     line-height: 1.35;
     white-space: nowrap;
   }
 
   .bubble.is-own .message-time {
-    color: rgb(15 79 168 / 56%);
+    color: var(--color-own-message-time);
   }
 
   a {
