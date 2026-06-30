@@ -1,0 +1,127 @@
+x-app-shell {
+  .frame {
+    height: 100%;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+    overflow: hidden;
+    background: var(--color-bg);
+  }
+
+  .main-pane {
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .chat-header {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    min-height: 64px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--color-border);
+    padding: 0 18px;
+    background: var(--color-panel);
+  }
+
+  .mobile-chats-button {
+    display: none;
+    width: 38px;
+    min-height: 34px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 0;
+    color: var(--color-text);
+    background: var(--color-panel);
+
+    .fa-icon {
+      width: 14px;
+      height: 14px;
+    }
+  }
+
+  .chat-body {
+    container-type: inline-size;
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    justify-items: stretch;
+    overflow: hidden;
+    background: #f7f9fc;
+  }
+
+  .composer-column {
+    width: min(100%, 720px);
+    min-width: 0;
+    justify-self: center;
+  }
+
+  .empty-state {
+    min-height: 0;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+    color: var(--color-text-muted);
+    text-align: center;
+  }
+
+  x-message-list {
+    width: 100%;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  x-message-composer {
+    width: 100%;
+    --composer-shell-radius: calc(var(--radius-sm) + 12px);
+    --composer-bottom-offset: 8px;
+  }
+}
+
+@container (max-width: 720px) {
+  x-app-shell x-message-composer {
+    --composer-shell-radius: 0;
+    --composer-bottom-offset: 0px;
+  }
+}
+
+@media (max-width: 760px) {
+  x-app-shell {
+    .frame {
+      grid-template-columns: 1fr;
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    .sidebar {
+      height: 100%;
+      max-height: none;
+      border-right: 0;
+    }
+
+    .main-pane {
+      height: 100%;
+      min-height: 0;
+    }
+
+    .frame.is-mobile-chats-pane .main-pane {
+      display: none;
+    }
+
+    .frame.is-mobile-chat-pane .sidebar {
+      display: none;
+    }
+
+    .mobile-chats-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+}

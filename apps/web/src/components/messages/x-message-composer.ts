@@ -1,5 +1,4 @@
-import { BUTTON_INTERACTION_CSS } from '../../utils/button-interactions.js';
-import { FONT_AWESOME_ICON_CSS, createFontAwesomeIcon } from '../../utils/fontawesome.js';
+import { createFontAwesomeIcon } from '../../utils/fontawesome.js';
 
 export type MessageComposerSubmitDetail = {
   body: string;
@@ -9,8 +8,6 @@ export type MessageComposerSubmitDetail = {
  * Renders the plain text message composer.
  */
 export class XMessageComposer extends HTMLElement {
-  private readonly root = this.attachShadow({ mode: 'open' });
-
   /**
    * Renders the composer when it enters the document.
    */
@@ -22,7 +19,7 @@ export class XMessageComposer extends HTMLElement {
    * Moves typing focus into the message textarea after the shell opens or updates a chat.
    */
   public focusEditor(): void {
-    this.root.querySelector<HTMLTextAreaElement>('textarea')?.focus();
+    this.querySelector<HTMLTextAreaElement>('textarea')?.focus();
   }
 
   /**
@@ -56,7 +53,7 @@ export class XMessageComposer extends HTMLElement {
     sendButton.append(sendLabel, sendIcon);
 
     form.append(textarea, sendButton);
-    this.root.replaceChildren(this.createStyles(), form);
+    this.replaceChildren(form);
   }
 
   /**
@@ -105,95 +102,6 @@ export class XMessageComposer extends HTMLElement {
     textarea.form?.requestSubmit();
   };
 
-  /**
-   * Defines stable composer sizing so typing does not shift the layout.
-   */
-  private createStyles(): HTMLStyleElement {
-    const style = document.createElement('style');
-    style.textContent = `
-      :host {
-        display: block;
-        min-height: 0;
-      }
-
-      ${FONT_AWESOME_ICON_CSS}
-
-      *,
-      *::before,
-      *::after {
-        box-sizing: border-box;
-      }
-
-      .composer {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 10px;
-        align-items: end;
-        border: 0;
-        border-radius: var(--composer-shell-radius, calc(var(--radius-sm) + 12px));
-        margin-bottom: var(--composer-bottom-offset, 8px);
-        padding: 12px;
-        background: var(--color-panel);
-      }
-
-      textarea {
-        min-width: 0;
-        width: 100%;
-        min-height: 42px;
-        max-height: 120px;
-        resize: none;
-        overflow-y: auto;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        padding: 9px 10px;
-        color: var(--color-text);
-        background: var(--color-panel);
-      }
-
-      button {
-        cursor: pointer;
-        min-height: 42px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        border: 0;
-        border-radius: var(--radius-sm);
-        padding: 0 14px;
-        color: #fff;
-        background: var(--color-accent);
-      }
-
-      .send-icon {
-        display: none;
-        width: 16px;
-        height: 16px;
-      }
-
-      button:disabled {
-        cursor: default;
-      }
-
-      @media (max-width: 760px) {
-        button {
-          width: 42px;
-          padding: 0;
-        }
-
-        .send-label {
-          display: none;
-        }
-
-        .send-icon {
-          display: inline-block;
-        }
-      }
-
-      ${BUTTON_INTERACTION_CSS}
-    `;
-
-    return style;
-  }
 }
 
 customElements.define('x-message-composer', XMessageComposer);

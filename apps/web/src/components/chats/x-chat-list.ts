@@ -1,5 +1,4 @@
 import type { ChatSummary } from '../../app/store.js';
-import { BUTTON_INTERACTION_CSS } from '../../utils/button-interactions.js';
 import type { XChatCard } from './x-chat-card.js';
 
 import './x-chat-card.js';
@@ -32,8 +31,6 @@ export type ChatSearchResultSelectDetail = {
  * Renders the direct chat list using chat card custom elements.
  */
 export class XChatList extends HTMLElement {
-  private readonly root = this.attachShadow({ mode: 'open' });
-
   private chats: ChatSummary[] = [];
 
   private activeChatId: string | null = null;
@@ -67,7 +64,7 @@ export class XChatList extends HTMLElement {
 
     if (this.search) {
       this.renderSearchResults(list, this.search);
-      this.root.replaceChildren(this.createStyles(), list);
+      this.replaceChildren(list);
       return;
     }
 
@@ -78,7 +75,7 @@ export class XChatList extends HTMLElement {
       list.append(card);
     }
 
-    this.root.replaceChildren(this.createStyles(), list);
+    this.replaceChildren(list);
   }
 
   /**
@@ -154,72 +151,6 @@ export class XChatList extends HTMLElement {
     );
   }
 
-  /**
-   * Defines the vertical list layout for chat navigation.
-   */
-  private createStyles(): HTMLStyleElement {
-    const style = document.createElement('style');
-    style.textContent = `
-      .list {
-        display: grid;
-        gap: 0;
-      }
-
-      .search-result {
-        cursor: pointer;
-        width: 100%;
-        min-height: 54px;
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        grid-template-rows: auto auto;
-        gap: 2px 10px;
-        align-items: center;
-        border: 0;
-        border-radius: 0;
-        padding: 8px 16px;
-        color: var(--color-text);
-        background: transparent;
-        text-align: left;
-      }
-
-      .search-result:hover,
-      .search-result:focus-visible {
-        background: var(--color-accent-soft);
-      }
-
-      .title {
-        min-width: 0;
-        overflow: hidden;
-        font-weight: 650;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-      }
-
-      .marker {
-        color: var(--color-text-muted);
-        font-size: 12px;
-      }
-
-      .meta {
-        min-width: 0;
-        overflow: hidden;
-        color: var(--color-text-muted);
-        font-size: 13px;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-      }
-
-      .note {
-        margin: 8px 12px;
-        color: var(--color-text-muted);
-        font-size: 13px;
-      }
-
-      ${BUTTON_INTERACTION_CSS}
-    `;
-
-    return style;
-  }
 }
 
 customElements.define('x-chat-list', XChatList);

@@ -1,6 +1,5 @@
 import type { MessageSummary } from '../../app/store.js';
-import { BUTTON_INTERACTION_CSS } from '../../utils/button-interactions.js';
-import { FONT_AWESOME_ICON_CSS, createFontAwesomeIcon } from '../../utils/fontawesome.js';
+import { createFontAwesomeIcon } from '../../utils/fontawesome.js';
 import type { MessageBubbleData, MessageGroupPlacement, XMessageBubble } from './x-message-bubble.js';
 
 import './x-message-bubble.js';
@@ -39,8 +38,6 @@ type DateMessageGroup = {
  * Renders messages for the active chat and requests older history near the top.
  */
 export class XMessageList extends HTMLElement {
-  private readonly root = this.attachShadow({ mode: 'open' });
-
   private messages: MessageSummary[] = [];
 
   private shouldScrollToBottomOnRender = true;
@@ -172,7 +169,7 @@ export class XMessageList extends HTMLElement {
       this.scrollToLatestMessage();
     });
 
-    this.root.replaceChildren(this.createStyles(), loadOlderButton, list, jumpButton);
+    this.replaceChildren(loadOlderButton, list, jumpButton);
     this.applyInitialScroll();
   }
 
@@ -350,7 +347,7 @@ export class XMessageList extends HTMLElement {
    * Shows the sticky date while the reader moves and hides it after scrolling pauses.
    */
   private showStickyDateUntilIdle(): void {
-    this.root.querySelectorAll<HTMLElement>('.date-divider.is-idle-hidden').forEach((divider) => {
+    this.querySelectorAll<HTMLElement>('.date-divider.is-idle-hidden').forEach((divider) => {
       divider.classList.remove('is-idle-hidden');
     });
     this.updateStickyDateState();
@@ -366,14 +363,14 @@ export class XMessageList extends HTMLElement {
    */
   private hideIdleStickyDate(): void {
     this.updateStickyDateState();
-    this.root.querySelector<HTMLElement>('.date-divider.is-stuck')?.classList.add('is-idle-hidden');
+    this.querySelector<HTMLElement>('.date-divider.is-stuck')?.classList.add('is-idle-hidden');
   }
 
   /**
    * Marks the date divider whose day group currently owns the sticky top line.
    */
   private updateStickyDateState(): void {
-    this.root.querySelectorAll<HTMLElement>('.date-divider.is-stuck').forEach((divider) => {
+    this.querySelectorAll<HTMLElement>('.date-divider.is-stuck').forEach((divider) => {
       divider.classList.remove('is-stuck');
     });
 
@@ -389,7 +386,7 @@ export class XMessageList extends HTMLElement {
     const stickyLineY = hostTop + STICKY_DATE_TOP_PX + STICKY_DATE_TOLERANCE_PX;
     let currentDivider: HTMLElement | null = null;
 
-    this.root.querySelectorAll<HTMLElement>('.date-group').forEach((group) => {
+    this.querySelectorAll<HTMLElement>('.date-group').forEach((group) => {
       const groupRect = group.getBoundingClientRect();
       if (groupRect.top <= stickyLineY && groupRect.bottom > stickyLineY) {
         currentDivider = group.querySelector<HTMLElement>('.date-divider');
@@ -415,7 +412,7 @@ export class XMessageList extends HTMLElement {
    * Shows the jump button only when the reader is away from the bottom of the feed.
    */
   private updateJumpButtonVisibility(): void {
-    const jumpButton = this.root.querySelector<HTMLButtonElement>('.jump-to-bottom');
+    const jumpButton = this.querySelector<HTMLButtonElement>('.jump-to-bottom');
     if (!jumpButton) {
       return;
     }
@@ -423,156 +420,6 @@ export class XMessageList extends HTMLElement {
     jumpButton.hidden = this.isNearBottom();
   }
 
-  /**
-   * Defines the scrollable message stack used by the shell.
-   */
-  private createStyles(): HTMLStyleElement {
-    const style = document.createElement('style');
-    style.textContent = `
-      :host {
-        display: block;
-        min-height: 0;
-        container-type: inline-size;
-        --message-list-max-width: 720px;
-        --message-list-half-width: 360px;
-        --jump-to-bottom-gap: 6px;
-        --jump-to-bottom-width: 42px;
-      }
-
-      ${FONT_AWESOME_ICON_CSS}
-
-      *,
-      *::before,
-      *::after {
-        box-sizing: border-box;
-      }
-
-      .list {
-        width: min(100%, var(--message-list-max-width));
-        min-height: 100%;
-        margin: 0 auto;
-        display: grid;
-        align-content: end;
-        padding: 18px;
-      }
-
-      .date-group {
-        min-width: 0;
-        display: grid;
-        align-content: start;
-      }
-
-      .date-group + .date-group {
-        margin-top: 16px;
-      }
-
-      .bottom-anchor {
-        width: 1px;
-        height: 1px;
-        pointer-events: none;
-      }
-
-      .date-divider {
-        position: sticky;
-        top: ${STICKY_DATE_TOP_PX}px;
-        z-index: 2;
-        justify-self: center;
-        margin: 0 0 8px;
-        pointer-events: none;
-        opacity: 1;
-        transform: translateY(0);
-        transition:
-          opacity 180ms ease,
-          transform 180ms ease;
-      }
-
-      .date-divider.is-stuck.is-idle-hidden {
-        opacity: 0;
-        transform: translateY(-4px);
-      }
-
-      .date-divider time {
-        display: block;
-        border: 1px solid rgb(148 163 184 / 24%);
-        border-radius: 999px;
-        padding: 4px 10px;
-        color: var(--color-text-muted);
-        background: var(--color-panel);
-        background: color-mix(in srgb, var(--color-panel) 86%, transparent);
-        font-size: 12px;
-        line-height: 1.2;
-        backdrop-filter: blur(8px);
-      }
-
-      x-message-bubble {
-        min-width: 0;
-        margin-top: 10px;
-      }
-
-      x-message-bubble.is-grouped-with-previous {
-        margin-top: 3px;
-      }
-
-      .load-older {
-        cursor: pointer;
-        display: block;
-        min-height: 32px;
-        margin: 14px auto 0;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        padding: 0 12px;
-        color: var(--color-text);
-        background: var(--color-panel);
-      }
-
-      .load-older:disabled {
-        cursor: default;
-        color: var(--color-text-muted);
-      }
-
-      .load-older[hidden] {
-        display: none;
-      }
-
-      .jump-to-bottom {
-        cursor: pointer;
-        display: grid;
-        place-items: center;
-        position: sticky;
-        bottom: 14px;
-        z-index: 2;
-        width: var(--jump-to-bottom-width);
-        min-height: 42px;
-        margin: -48px 0 14px calc(50% + var(--message-list-half-width) + var(--jump-to-bottom-gap));
-        border: 0;
-        border-radius: 999px;
-        padding: 0;
-        color: #fff;
-        background: var(--color-accent);
-        box-shadow: 0 8px 24px rgb(15 23 42 / 18%);
-      }
-
-      .jump-to-bottom .fa-icon {
-        width: 16px;
-        height: 16px;
-      }
-
-      @container (max-width: 804px) {
-        .jump-to-bottom {
-          margin-right: 18px;
-          margin-left: auto;
-        }
-      }
-
-      .jump-to-bottom[hidden] {
-        display: none;
-      }
-
-      ${BUTTON_INTERACTION_CSS}
-    `;
-
-    return style;
-  }
 }
 
 /**

@@ -1,0 +1,109 @@
+x-app-shell {
+  .modal-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+    background: rgb(24 32 42 / 34%);
+  }
+
+  .modal-layer[hidden] {
+    display: none;
+  }
+
+  .modal-dialog {
+    width: min(100%, 520px);
+    max-height: min(760px, calc(100dvh - 36px));
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-panel);
+    box-shadow: var(--shadow-panel);
+  }
+
+  .modal-header {
+    min-height: 56px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    border-bottom: 1px solid var(--color-border);
+    padding: 0 14px 0 18px;
+
+    h2 {
+      min-width: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .modal-close {
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+    background: var(--color-panel);
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .modal-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 18px;
+  }
+
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    border-top: 1px solid var(--color-border);
+    padding: 12px 18px;
+  }
+
+  .modal-action {
+    min-height: 36px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 0 14px;
+    color: var(--color-text);
+    background: var(--color-panel);
+  }
+
+  .modal-action.is-primary {
+    border-color: var(--color-accent);
+    color: #fff;
+    background: var(--color-accent);
+  }
+
+  .modal-action.is-danger {
+    border-color: var(--color-danger);
+    color: #fff;
+    background: var(--color-danger);
+  }
+
+  .auth-modal-content,
+  .admin-approvals-modal-content {
+    display: grid;
+    gap: 14px;
+  }
+}
+
+@media (max-width: 760px) {
+  x-app-shell {
+    .modal-layer {
+      padding: 10px;
+    }
+
+    .modal-dialog {
+      max-height: calc(100dvh - 20px);
+    }
+  }
+}

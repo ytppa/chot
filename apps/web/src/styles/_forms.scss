@@ -1,0 +1,70 @@
+x-login-form,
+x-register-form {
+  display: block;
+
+  .form {
+    display: grid;
+    gap: 14px;
+  }
+
+  h2 {
+    margin: 0 0 4px;
+    font-size: 20px;
+    line-height: 1.2;
+  }
+
+  input {
+    width: 100%;
+    min-height: 40px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    color: var(--color-text);
+    background: var(--color-panel);
+  }
+
+  button {
+    min-height: 40px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    padding: 8px 14px;
+    color: #fff;
+    background: var(--color-accent);
+  }
+}
+
+x-login-form {
+  button {
+    justify-self: start;
+  }
+
+  .debug-logins {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .debug-login-button {
+    min-height: 30px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 4px 8px;
+    color: var(--color-text-muted);
+    background: var(--color-panel);
+    font-size: 12px;
+  }
+}
+
+x-register-form {
+  label {
+    display: grid;
+    gap: 6px;
+    color: var(--color-text-muted);
+    font-size: 13px;
+  }
+
+  .hint {
+    color: var(--color-text-muted);
+    font-size: 12px;
+  }
+}

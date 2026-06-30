@@ -1,5 +1,4 @@
 import type { ChatSummary } from '../../app/store.js';
-import { BUTTON_INTERACTION_CSS } from '../../utils/button-interactions.js';
 import type { AppContextMenuDetail } from '../context-menu/types.js';
 
 const LONG_PRESS_DELAY_MS = 550;
@@ -8,8 +7,6 @@ const LONG_PRESS_DELAY_MS = 550;
  * Renders one chat row and emits selection without owning list state.
  */
 export class XChatCard extends HTMLElement {
-  private readonly root = this.attachShadow({ mode: 'open' });
-
   private chat: ChatSummary | null = null;
 
   private selected = false;
@@ -86,7 +83,7 @@ export class XChatCard extends HTMLElement {
       unread.textContent = String(this.chat.unreadCount);
       button.append(unread);
     }
-    this.root.replaceChildren(this.createStyles(), button);
+    this.replaceChildren(button);
   }
 
   /**
@@ -161,7 +158,7 @@ export class XChatCard extends HTMLElement {
   }
 
   /**
-   * Emits the selected chat id through Shadow DOM boundaries.
+   * Emits the selected chat id without exposing list state to the row.
    */
   private dispatchSelect(): void {
     if (!this.chat) {
@@ -180,7 +177,7 @@ export class XChatCard extends HTMLElement {
   }
 
   /**
-   * Emits the chat context menu request through Shadow DOM boundaries.
+   * Emits the chat context menu request for the shared menu layer.
    */
   private dispatchContextMenu(clientX: number, clientY: number): void {
     if (!this.chat) {
@@ -206,74 +203,6 @@ export class XChatCard extends HTMLElement {
     );
   }
 
-  /**
-   * Defines the compact row layout used by the chat list.
-   */
-  private createStyles(): HTMLStyleElement {
-    const style = document.createElement('style');
-    style.textContent = `
-      .card {
-        cursor: pointer;
-        width: 100%;
-        min-height: 56px;
-        display: grid;
-        grid-template-columns: 1fr auto;
-        grid-template-rows: auto auto;
-        gap: 2px 10px;
-        align-items: center;
-        border: 0;
-        border-radius: 0;
-        padding: 8px 16px;
-        color: var(--color-text);
-        background: transparent;
-        text-align: left;
-      }
-
-      .card:hover,
-      .card.is-active {
-        background: var(--color-accent-soft);
-      }
-
-      .title {
-        min-width: 0;
-        overflow: hidden;
-        font-weight: 650;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-      }
-
-      .time {
-        color: var(--color-text-muted);
-        font-size: 12px;
-      }
-
-      .last-message {
-        min-width: 0;
-        overflow: hidden;
-        color: var(--color-text-muted);
-        font-size: 13px;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-      }
-
-      .unread {
-        min-width: 22px;
-        height: 22px;
-        display: inline-grid;
-        place-items: center;
-        border-radius: 999px;
-        padding: 0 6px;
-        color: #fff;
-        background: var(--color-accent);
-        font-size: 12px;
-        font-weight: 700;
-      }
-
-      ${BUTTON_INTERACTION_CSS}
-    `;
-
-    return style;
-  }
 }
 
 customElements.define('x-chat-card', XChatCard);

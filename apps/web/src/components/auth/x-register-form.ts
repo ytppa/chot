@@ -1,5 +1,3 @@
-import { BUTTON_INTERACTION_CSS } from '../../utils/button-interactions.js';
-
 export type RegisterFormSubmitDetail = {
   login: string;
   password: string;
@@ -10,8 +8,6 @@ export type RegisterFormSubmitDetail = {
  * Renders the registration form for pending user requests.
  */
 export class XRegisterForm extends HTMLElement {
-  private readonly root = this.attachShadow({ mode: 'open' });
-
   private submitLocked = false;
 
   /**
@@ -50,7 +46,7 @@ export class XRegisterForm extends HTMLElement {
     });
 
     form.append(title, displayNameInput.wrapper, loginInput.wrapper, passwordInput.wrapper, submitButton);
-    this.root.replaceChildren(this.createStyles(), form);
+    this.replaceChildren(form);
   }
 
   /**
@@ -114,7 +110,7 @@ export class XRegisterForm extends HTMLElement {
   }
 
   /**
-   * Emits a composed event so the app shell can send the registration request.
+   * Emits a registration event so the app shell can send the request.
    */
   private handleSubmit(event: SubmitEvent): void {
     event.preventDefault();
@@ -152,70 +148,6 @@ export class XRegisterForm extends HTMLElement {
     );
   }
 
-  /**
-   * Defines local form styles without leaking selectors into the app shell.
-   */
-  private createStyles(): HTMLStyleElement {
-    const style = document.createElement('style');
-    style.textContent = `
-      .form {
-        display: grid;
-        gap: 14px;
-      }
-
-      *,
-      *::before,
-      *::after {
-        box-sizing: border-box;
-      }
-
-      h2 {
-        margin: 0 0 4px;
-        font-size: 20px;
-        line-height: 1.2;
-      }
-
-      label {
-        display: grid;
-        gap: 6px;
-        color: var(--color-text-muted);
-        font-size: 13px;
-      }
-
-      .hint {
-        color: var(--color-text-muted);
-        font-size: 12px;
-      }
-
-      input {
-        width: 100%;
-        min-height: 40px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        padding: 8px 10px;
-        color: var(--color-text);
-        background: var(--color-panel);
-      }
-
-      button {
-        cursor: pointer;
-        min-height: 40px;
-        border: 0;
-        border-radius: var(--radius-sm);
-        padding: 8px 14px;
-        color: #fff;
-        background: var(--color-accent);
-      }
-
-      button:disabled {
-        cursor: default;
-      }
-
-      ${BUTTON_INTERACTION_CSS}
-    `;
-
-    return style;
-  }
 }
 
 customElements.define('x-register-form', XRegisterForm);

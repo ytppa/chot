@@ -1,0 +1,66 @@
+x-message-composer {
+  display: block;
+  min-height: 0;
+
+  .composer {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    align-items: end;
+    border: 0;
+    border-radius: var(--composer-shell-radius, calc(var(--radius-sm) + 12px));
+    margin-bottom: var(--composer-bottom-offset, 8px);
+    padding: 12px;
+    background: var(--color-panel);
+  }
+
+  textarea {
+    min-width: 0;
+    width: 100%;
+    min-height: 42px;
+    max-height: 120px;
+    resize: none;
+    overflow-y: auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 9px 10px;
+    color: var(--color-text);
+    background: var(--color-panel);
+  }
+
+  button {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    padding: 0 14px;
+    color: #fff;
+    background: var(--color-accent);
+  }
+
+  .send-icon {
+    display: none;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (max-width: 760px) {
+  x-message-composer {
+    button {
+      width: 42px;
+      padding: 0;
+    }
+
+    .send-label {
+      display: none;
+    }
+
+    .send-icon {
+      display: inline-block;
+    }
+  }
+}

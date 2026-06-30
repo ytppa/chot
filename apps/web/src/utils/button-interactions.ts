@@ -1,5 +1,5 @@
 /**
- * Provides consistent hover and keyboard focus behavior for Shadow DOM buttons.
+ * Provides consistent hover and keyboard focus behavior for the remaining Shadow DOM buttons.
  */
 export const BUTTON_INTERACTION_CSS = `
   button {

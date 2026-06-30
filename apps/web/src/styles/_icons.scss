@@ -1,0 +1,21 @@
+.fa-icon {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  -webkit-mask: var(--fa-icon-url) center / contain no-repeat;
+  mask: var(--fa-icon-url) center / contain no-repeat;
+}
+
+.fa-icon-chevron-down {
+  --fa-icon-url: url("/vendor/fontawesome/svgs/solid/chevron-down.svg");
+}
+
+.fa-icon-chevron-left {
+  --fa-icon-url: url("/vendor/fontawesome/svgs/solid/chevron-left.svg");
+}
+
+.fa-icon-paper-plane {
+  --fa-icon-url: url("/vendor/fontawesome/svgs/solid/paper-plane.svg");
+}

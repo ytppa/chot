@@ -16,8 +16,6 @@ export type MessageBubbleData = {
  * Renders one plain text message bubble.
  */
 export class XMessageBubble extends HTMLElement {
-  private readonly root = this.attachShadow({ mode: 'open' });
-
   private message: MessageSummary | null = null;
 
   private groupPlacement: MessageGroupPlacement = 'single';
@@ -90,7 +88,7 @@ export class XMessageBubble extends HTMLElement {
       article.append(meta);
     }
     article.append(body);
-    this.root.replaceChildren(this.createStyles(), article);
+    this.replaceChildren(article);
   }
 
   /**
@@ -223,7 +221,7 @@ export class XMessageBubble extends HTMLElement {
   }
 
   /**
-   * Emits the message context menu request through Shadow DOM boundaries.
+   * Emits the message context menu request for the shared menu layer.
    */
   private dispatchContextMenu(clientX: number, clientY: number): void {
     if (!this.message) {
@@ -248,111 +246,6 @@ export class XMessageBubble extends HTMLElement {
     );
   }
 
-  /**
-   * Defines compact bubble styles for incoming and outgoing messages.
-   */
-  private createStyles(): HTMLStyleElement {
-    const style = document.createElement('style');
-    style.textContent = `
-      :host {
-        display: block;
-        min-width: 0;
-      }
-
-      .bubble {
-        box-sizing: border-box;
-        width: fit-content;
-        min-width: min(20ch, 100%);
-        max-width: 90%;
-        display: grid;
-        gap: 3px;
-        margin-right: auto;
-        border: 0;
-        border-radius: 16px;
-        padding: 8px 11px 7px;
-        background: var(--color-panel);
-      }
-
-      .bubble.is-own {
-        margin-right: 0;
-        margin-left: auto;
-        background: var(--color-accent-soft);
-      }
-
-      .bubble.is-group-first.is-incoming,
-      .bubble.is-group-middle.is-incoming {
-        border-bottom-left-radius: 3px;
-      }
-
-      .bubble.is-group-middle.is-incoming,
-      .bubble.is-group-last.is-incoming {
-        border-top-left-radius: 3px;
-      }
-
-      .bubble.is-group-first.is-own,
-      .bubble.is-group-middle.is-own {
-        border-bottom-right-radius: 3px;
-      }
-
-      .bubble.is-group-middle.is-own,
-      .bubble.is-group-last.is-own {
-        border-top-right-radius: 3px;
-      }
-
-      .meta {
-        min-width: 0;
-        color: var(--color-text);
-        font-size: 12px;
-      }
-
-      .sender {
-        color: var(--color-text);
-        font-weight: 650;
-      }
-
-      .body {
-        margin: 0;
-        color: var(--color-text);
-        line-height: 1.35;
-        overflow-wrap: anywhere;
-        white-space: pre-wrap;
-      }
-
-      .body::after {
-        content: '';
-        display: block;
-        clear: both;
-      }
-
-      .time-spacer {
-        display: inline-block;
-        width: 44px;
-        height: 1px;
-      }
-
-      .message-time {
-        float: right;
-        margin: 4px 0 -1px 8px;
-        color: rgb(102 113 126 / 72%);
-        font-size: 11px;
-        line-height: 1.35;
-        white-space: nowrap;
-      }
-
-      .bubble.is-own .message-time {
-        color: rgb(15 79 168 / 56%);
-      }
-
-      a {
-        color: var(--color-accent);
-        text-decoration: underline;
-        text-underline-offset: 2px;
-        overflow-wrap: anywhere;
-      }
-    `;
-
-    return style;
-  }
 }
 
 /**

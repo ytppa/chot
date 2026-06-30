@@ -22,8 +22,7 @@ import type { XChatList } from '../components/chats/x-chat-list.js';
 import type { MessageListScrollAnchor, XMessageList } from '../components/messages/x-message-list.js';
 import { ApiClient, ApiClientError } from '../services/api-client.js';
 import { WebSocketClient, type WebSocketConnectionState } from '../services/ws-client.js';
-import { BUTTON_INTERACTION_CSS } from '../utils/button-interactions.js';
-import { FONT_AWESOME_ICON_CSS, createFontAwesomeIcon } from '../utils/fontawesome.js';
+import { createFontAwesomeIcon } from '../utils/fontawesome.js';
 import { createUuid } from '../utils/uuid.js';
 import { AdminApprovalsController } from './admin-approvals-controller.js';
 
@@ -60,8 +59,6 @@ type AppModalOptions = {
  * Owns the first usable chat screen and wires child components to app state.
  */
 export class XAppShell extends HTMLElement {
-  private readonly root = this.attachShadow({ mode: 'open' });
-
   private readonly store = new AppStore();
 
   private readonly apiClient = new ApiClient();
@@ -103,6 +100,8 @@ export class XAppShell extends HTMLElement {
    * Forces the message feed to follow messages authored from this client.
    */
   private shouldForceMessageListBottom = false;
+
+  private messageListBottomReleaseFrames: number[] = [];
 
   private shouldPreserveOlderMessagesAnchor = false;
 
@@ -156,13 +155,14 @@ export class XAppShell extends HTMLElement {
     this.unsubscribeRealtime = null;
     this.unsubscribeRealtimeState = null;
     this.clearChatSearchDebounceTimer();
+    this.releaseMessageListBottomLock();
   }
 
   /**
    * Builds the full application shell from current state.
    */
   private render(state: AppState): void {
-    const previousMessageList = this.root.querySelector<XMessageList>('x-message-list');
+    const previousMessageList = this.querySelector<XMessageList>('x-message-list');
     const isSameActiveChat = this.renderedActiveChatId === state.activeChatId;
     const shouldForceScrollToOwnMessage = this.shouldForceMessageListBottom;
     const shouldPreserveOlderMessagesAnchor =
@@ -204,9 +204,8 @@ export class XAppShell extends HTMLElement {
     frame.append(sidebar, mainPane);
     const modalRoot = this.createModalRoot();
 
-    this.root.replaceChildren(this.createStyles(), frame, contextMenuRoot, modalRoot);
+    this.replaceChildren(frame, contextMenuRoot, modalRoot);
     this.renderedActiveChatId = state.activeChatId;
-    this.shouldForceMessageListBottom = false;
     this.shouldPreserveOlderMessagesAnchor = false;
     this.olderMessagesAnchorChatId = null;
   }
@@ -615,7 +614,7 @@ export class XAppShell extends HTMLElement {
     this.activeModal = options;
     this.render(this.store.getState());
     window.requestAnimationFrame(() => {
-      this.root.querySelector<HTMLElement>('.modal-dialog button, .modal-dialog input')?.focus();
+      this.querySelector<HTMLElement>('.modal-dialog button, .modal-dialog input')?.focus();
     });
   }
 
@@ -647,7 +646,7 @@ export class XAppShell extends HTMLElement {
    */
   private closeMobileChatPane(): void {
     this.mobilePane = 'chats';
-    this.shouldForceMessageListBottom = false;
+    this.releaseMessageListBottomLock();
     this.shouldPreserveOlderMessagesAnchor = false;
     this.olderMessagesAnchorChatId = null;
     this.clearChatRoute();
@@ -809,7 +808,7 @@ export class XAppShell extends HTMLElement {
   private readonly handleContextMenuRequest = (event: Event): void => {
     event.preventDefault();
     const detail = (event as CustomEvent<AppContextMenuDetail>).detail;
-    const menuRoot = this.root.querySelector<XContextMenuRoot>('x-context-menu-root');
+    const menuRoot = this.querySelector<XContextMenuRoot>('x-context-menu-root');
     menuRoot?.open(detail);
   };
 
@@ -848,7 +847,7 @@ export class XAppShell extends HTMLElement {
     const clientNonce = createUuid();
 
     // Own outgoing messages should stay visible even when the reader was browsing old history.
-    this.shouldForceMessageListBottom = true;
+    this.forceMessageListBottomUntilLayoutSettles();
     this.store.addLocalMessage(detail.body, clientNonce);
 
     const sendResult = this.wsClient.sendMessage({
@@ -1047,7 +1046,7 @@ export class XAppShell extends HTMLElement {
    * Updates only the chat list component so typing in the search input keeps focus.
    */
   private refreshChatList(): void {
-    const chatList = this.root.querySelector<XChatList>('x-chat-list');
+    const chatList = this.querySelector<XChatList>('x-chat-list');
     if (!chatList) {
       return;
     }
@@ -1106,6 +1105,11 @@ export class XAppShell extends HTMLElement {
       });
       this.restoreOnlineStatus();
     } catch (error) {
+      if (this.isSessionExpiredError(error)) {
+        this.handleSessionExpired();
+        return;
+      }
+
       this.store.setStatusText(this.getErrorMessage(error));
     }
   }
@@ -1134,7 +1138,7 @@ export class XAppShell extends HTMLElement {
     }
 
     if (options.forceScrollToBottom) {
-      this.shouldForceMessageListBottom = true;
+      this.forceMessageListBottomUntilLayoutSettles();
     }
     this.store.setDirectChats(chatsResponse.chats, resolvedPreferredChatId, !shouldKeepChatClosed);
 
@@ -1160,13 +1164,13 @@ export class XAppShell extends HTMLElement {
    * Selects a chat, loads its history, and records that the user has read it.
    */
   private async openChat(chatId: string, shouldPushRoute = true): Promise<void> {
-    this.shouldForceMessageListBottom = true;
+    this.forceMessageListBottomUntilLayoutSettles();
     this.mobilePane = 'chat';
     if (shouldPushRoute) {
       this.pushChatRoute(chatId);
     }
     this.store.setActiveChat(chatId);
-    this.shouldForceMessageListBottom = true;
+    this.forceMessageListBottomUntilLayoutSettles();
     this.store.markChatRead(chatId);
     this.focusActiveComposerSoon();
     await this.loadChatMessages(chatId, true);
@@ -1185,7 +1189,7 @@ export class XAppShell extends HTMLElement {
         limit: MESSAGE_PAGE_SIZE
       });
       if (forceScrollToBottom) {
-        this.shouldForceMessageListBottom = true;
+        this.forceMessageListBottomUntilLayoutSettles();
       }
       this.store.setMessages(chatId, response.messages, response.page);
     } catch (error) {
@@ -1231,7 +1235,7 @@ export class XAppShell extends HTMLElement {
    */
   private async markChatRead(chatId: string, options: MarkChatReadOptions = {}): Promise<void> {
     if (options.forceScrollToBottom) {
-      this.shouldForceMessageListBottom = true;
+      this.forceMessageListBottomUntilLayoutSettles();
     }
 
     this.store.markChatRead(chatId);
@@ -1292,6 +1296,11 @@ export class XAppShell extends HTMLElement {
     }
 
     if (event.type === 'error' && isWebSocketErrorPayload(event.payload)) {
+      if (event.payload.code === 'session_required') {
+        this.handleSessionExpired();
+        return;
+      }
+
       this.store.setStatusText(event.payload.message);
     }
   }
@@ -1396,11 +1405,69 @@ export class XAppShell extends HTMLElement {
   }
 
   /**
+   * Keeps bottom-following active across quick status and ack renders after a send.
+   */
+  private forceMessageListBottomUntilLayoutSettles(): void {
+    this.shouldForceMessageListBottom = true;
+    this.cancelMessageListBottomReleaseFrames();
+
+    // Let the new message list render, mount, and run its own bottom alignment frames.
+    const firstFrame = window.requestAnimationFrame(() => {
+      const secondFrame = window.requestAnimationFrame(() => {
+        this.shouldForceMessageListBottom = false;
+        this.messageListBottomReleaseFrames = [];
+      });
+      this.messageListBottomReleaseFrames = [secondFrame];
+    });
+    this.messageListBottomReleaseFrames = [firstFrame];
+  }
+
+  /**
+   * Stops any pending bottom-following window when the active feed is closed.
+   */
+  private releaseMessageListBottomLock(): void {
+    this.cancelMessageListBottomReleaseFrames();
+    this.shouldForceMessageListBottom = false;
+  }
+
+  /**
+   * Cancels scheduled frames that would later release forced bottom alignment.
+   */
+  private cancelMessageListBottomReleaseFrames(): void {
+    for (const frameId of this.messageListBottomReleaseFrames) {
+      window.cancelAnimationFrame(frameId);
+    }
+    this.messageListBottomReleaseFrames = [];
+  }
+
+  /**
+   * Returns the UI to anonymous mode when reconnect proves the session is invalid.
+   */
+  private handleSessionExpired(): void {
+    this.wsClient.disconnect();
+    this.mobilePane = 'chats';
+    this.activeModal = null;
+    this.chatSearchQuery = '';
+    this.chatSearchResults = [];
+    this.isChatSearchLoading = false;
+    this.clearChatSearchDebounceTimer();
+    this.clearChatRoute();
+    this.store.clearSession('Session expired. Sign in again.');
+  }
+
+  /**
+   * Detects expired auth on HTTP refreshes triggered after realtime reconnect.
+   */
+  private isSessionExpiredError(error: unknown): boolean {
+    return error instanceof ApiClientError && (error.statusCode === 401 || error.code === 'session_required');
+  }
+
+  /**
    * Refocuses the active message composer after shell re-renders settle.
    */
   private focusActiveComposerSoon(): void {
     window.requestAnimationFrame(() => {
-      this.root.querySelector<XMessageComposer>('x-message-composer')?.focusEditor();
+      this.querySelector<XMessageComposer>('x-message-composer')?.focusEditor();
     });
   }
 
@@ -1415,535 +1482,6 @@ export class XAppShell extends HTMLElement {
     return 'Request failed.';
   }
 
-  /**
-   * Defines the responsive application layout.
-   */
-  private createStyles(): HTMLStyleElement {
-    const style = document.createElement('style');
-    style.textContent = `
-      :host {
-        display: block;
-        height: 100vh;
-        overflow: hidden;
-      }
-
-      ${FONT_AWESOME_ICON_CSS}
-
-      *,
-      *::before,
-      *::after {
-        box-sizing: border-box;
-      }
-
-      button {
-        cursor: pointer;
-      }
-
-      button:disabled {
-        cursor: default;
-      }
-
-      ${BUTTON_INTERACTION_CSS}
-
-      .frame {
-        height: 100%;
-        min-height: 0;
-        display: grid;
-        grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
-        overflow: hidden;
-        background: var(--color-bg);
-      }
-
-      .sidebar {
-        min-width: 0;
-        min-height: 0;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        gap: 14px;
-        border-right: 1px solid var(--color-border);
-        padding: 16px;
-        background: var(--color-panel);
-      }
-
-      .brand {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 12px;
-      }
-
-      h1,
-      h2 {
-        margin: 0;
-        color: var(--color-text);
-        font-size: 20px;
-        line-height: 1.2;
-      }
-
-      .brand span {
-        color: var(--color-text-muted);
-        font-size: 12px;
-      }
-
-      .auth-panel {
-        display: grid;
-        gap: 14px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-        padding: 12px;
-        background: var(--color-panel-muted);
-      }
-
-      .auth-panel.is-session {
-        width: calc(100% + 32px);
-        margin-inline: -16px;
-        border: 0;
-        border-radius: 0;
-        padding: 10px 16px;
-      }
-
-      .auth-panel h2 {
-        margin: 0;
-        font-size: 14px;
-        line-height: 1.25;
-      }
-
-      .auth-actions {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
-      }
-
-      .auth-action {
-        min-height: 34px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        padding: 0 10px;
-        color: var(--color-text);
-        background: var(--color-panel);
-      }
-
-      .auth-action.is-primary {
-        border-color: var(--color-accent);
-        color: #fff;
-        background: var(--color-accent);
-      }
-
-      .chat-search {
-        width: 100%;
-        min-height: 34px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        padding: 0 10px;
-        color: var(--color-text);
-        background: var(--color-panel);
-      }
-
-      .chat-search:focus {
-        outline: 0;
-        border-color: var(--color-accent);
-      }
-
-      .admin-approvals {
-        display: grid;
-        flex: 0 0 auto;
-        width: calc(100% + 32px);
-        margin-inline: -16px;
-        gap: 6px;
-        border: 0;
-        border-radius: 0;
-        padding: 8px 16px;
-        background: var(--color-panel-muted);
-      }
-
-      .admin-approvals.has-pending {
-        background: var(--color-accent-soft);
-      }
-
-      .admin-approvals-header {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 8px;
-        align-items: center;
-      }
-
-      .admin-approvals h2 {
-        margin: 0;
-        font-size: 13px;
-        line-height: 1.25;
-      }
-
-      .admin-approvals-toggle {
-        min-height: 28px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        padding: 0 8px;
-        color: var(--color-text);
-        background: var(--color-panel);
-        font-size: 13px;
-      }
-
-      .admin-approvals-toggle.has-pending {
-        border-color: var(--color-accent);
-        color: var(--color-accent-strong);
-        font-weight: 650;
-      }
-
-      .admin-approvals-list {
-        display: grid;
-        gap: 8px;
-      }
-
-      .admin-approvals-note {
-        margin: 0;
-        color: var(--color-text-muted);
-        font-size: 13px;
-      }
-
-      .pending-user {
-        display: grid;
-        gap: 8px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        padding: 8px;
-        background: var(--color-panel);
-      }
-
-      .pending-user-identity {
-        min-width: 0;
-        display: grid;
-        gap: 2px;
-      }
-
-      .pending-user-identity strong,
-      .pending-user-identity span {
-        min-width: 0;
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-      }
-
-      .pending-user-identity span {
-        color: var(--color-text-muted);
-        font-size: 12px;
-      }
-
-      .pending-user-actions {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 6px;
-      }
-
-      .pending-user-actions button {
-        min-height: 32px;
-        border-radius: var(--radius-sm);
-        padding: 0 8px;
-      }
-
-      .pending-user-approve {
-        border: 0;
-        color: #fff;
-        background: var(--color-accent);
-      }
-
-      .pending-user-reject {
-        border: 1px solid var(--color-border);
-        color: var(--color-text);
-        background: var(--color-panel);
-      }
-
-      x-chat-list {
-        flex: 1 1 auto;
-        min-height: 0;
-        width: calc(100% + 32px);
-        margin-inline: -16px;
-        overflow: auto;
-      }
-
-      .session {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 10px;
-        align-items: center;
-      }
-
-      .session-user {
-        min-width: 0;
-        display: grid;
-        gap: 2px;
-      }
-
-      .session-user strong,
-      .session-user span {
-        min-width: 0;
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-      }
-
-      .session-user span {
-        color: var(--color-text-muted);
-        font-size: 12px;
-      }
-
-      .logout {
-        min-height: 34px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        padding: 0 10px;
-        color: var(--color-text);
-        background: var(--color-panel);
-      }
-
-      .tabs {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 6px;
-      }
-
-      .tab {
-        min-height: 34px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        color: var(--color-text-muted);
-        background: var(--color-panel);
-      }
-
-      .tab.is-active {
-        border-color: var(--color-accent);
-        color: var(--color-accent-strong);
-        background: var(--color-accent-soft);
-      }
-
-      .main-pane {
-        min-width: 0;
-        min-height: 0;
-        height: 100%;
-        display: grid;
-        grid-template-rows: auto minmax(0, 1fr);
-        overflow: hidden;
-      }
-
-      .chat-header {
-        position: sticky;
-        top: 0;
-        z-index: 4;
-        min-height: 64px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        border-bottom: 1px solid var(--color-border);
-        padding: 0 18px;
-        background: var(--color-panel);
-      }
-
-      .mobile-chats-button {
-        display: none;
-        width: 38px;
-        min-height: 34px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        padding: 0;
-        color: var(--color-text);
-        background: var(--color-panel);
-      }
-
-      .mobile-chats-button .fa-icon {
-        width: 14px;
-        height: 14px;
-      }
-
-      x-message-list {
-        width: 100%;
-        min-height: 0;
-        overflow: auto;
-      }
-
-      x-message-composer {
-        width: 100%;
-        --composer-shell-radius: calc(var(--radius-sm) + 12px);
-        --composer-bottom-offset: 8px;
-      }
-
-      .chat-body {
-        container-type: inline-size;
-        min-width: 0;
-        min-height: 0;
-        display: grid;
-        grid-template-rows: minmax(0, 1fr) auto;
-        justify-items: stretch;
-        overflow: hidden;
-        background: #f7f9fc;
-      }
-
-      .composer-column {
-        width: min(100%, 720px);
-        min-width: 0;
-        justify-self: center;
-      }
-
-      @container (max-width: 720px) {
-        x-message-composer {
-          --composer-shell-radius: 0;
-          --composer-bottom-offset: 0px;
-        }
-      }
-
-      .empty-state {
-        min-height: 0;
-        display: grid;
-        place-items: center;
-        padding: 18px;
-        color: var(--color-text-muted);
-        text-align: center;
-      }
-
-      .modal-layer {
-        position: fixed;
-        inset: 0;
-        z-index: 1100;
-        display: grid;
-        place-items: center;
-        padding: 18px;
-        background: rgb(24 32 42 / 34%);
-      }
-
-      .modal-layer[hidden] {
-        display: none;
-      }
-
-      .modal-dialog {
-        width: min(100%, 520px);
-        max-height: min(760px, calc(100dvh - 36px));
-        min-height: 0;
-        display: grid;
-        grid-template-rows: auto minmax(0, 1fr) auto;
-        overflow: hidden;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-        background: var(--color-panel);
-        box-shadow: var(--shadow-panel);
-      }
-
-      .modal-header {
-        min-height: 56px;
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 12px;
-        align-items: center;
-        border-bottom: 1px solid var(--color-border);
-        padding: 0 14px 0 18px;
-      }
-
-      .modal-header h2 {
-        min-width: 0;
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-      }
-
-      .modal-close {
-        width: 34px;
-        height: 34px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        color: var(--color-text);
-        background: var(--color-panel);
-        font-size: 22px;
-        line-height: 1;
-      }
-
-      .modal-body {
-        min-height: 0;
-        overflow: auto;
-        padding: 18px;
-      }
-
-      .modal-footer {
-        display: flex;
-        justify-content: flex-end;
-        gap: 8px;
-        border-top: 1px solid var(--color-border);
-        padding: 12px 18px;
-      }
-
-      .modal-action {
-        min-height: 36px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        padding: 0 14px;
-        color: var(--color-text);
-        background: var(--color-panel);
-      }
-
-      .modal-action.is-primary {
-        border-color: var(--color-accent);
-        color: #fff;
-        background: var(--color-accent);
-      }
-
-      .modal-action.is-danger {
-        border-color: var(--color-danger);
-        color: #fff;
-        background: var(--color-danger);
-      }
-
-      .auth-modal-content,
-      .admin-approvals-modal-content {
-        display: grid;
-        gap: 14px;
-      }
-
-      @media (max-width: 760px) {
-        .frame {
-          grid-template-columns: 1fr;
-          grid-template-rows: minmax(0, 1fr);
-        }
-
-        .sidebar {
-          height: 100%;
-          max-height: none;
-          border-right: 0;
-        }
-
-        .main-pane {
-          height: 100%;
-          min-height: 0;
-        }
-
-        .frame.is-mobile-chats-pane .main-pane {
-          display: none;
-        }
-
-        .frame.is-mobile-chat-pane .sidebar {
-          display: none;
-        }
-
-        .mobile-chats-button {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .modal-layer {
-          padding: 10px;
-        }
-
-        .modal-dialog {
-          max-height: calc(100dvh - 20px);
-        }
-      }
-
-      @supports (height: 100dvh) {
-        :host {
-          height: 100dvh;
-        }
-      }
-    `;
-
-    return style;
-  }
 }
 
 /**
