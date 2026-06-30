@@ -105,7 +105,11 @@ nothing-chat/
         utils/
           linkify.ts
         styles/
-          tokens.css
+          index.scss
+          _tokens.scss
+          _app-shell.scss
+          _message-list.scss
+          _message-bubble.scss
 
     server/
       src/

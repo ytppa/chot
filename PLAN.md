@@ -1,6 +1,6 @@
 # Nothing Shhh - Development Plan
 
-Дата актуализации: 2026-06-24
+Дата актуализации: 2026-06-28
 
 Этот файл нужен как живой план разработки. Он должен отражать текущее состояние проекта, ближайший фокус и статус крупных этапов.
 
@@ -34,13 +34,14 @@
 - `DONE` Этап 4: локальный PostgreSQL поднят через portable EDB binaries; Drizzle migration применена, admin seed выполнен.
 - `DONE` Этап 5: auth и admin flow реализован на уровне HTTP routes и DB-backed services.
 - `DONE` Этап 6: direct chats HTTP API, membership checks, загрузка истории и frontend creation flow реализованы.
-- `DONE` Этап 7: базовый realtime message flow, read marks, сброс unread и frontend reconnect реализованы.
+- `DONE` Этап 7: базовый realtime message flow, read marks, сброс unread, frontend reconnect и heartbeat/watchdog устойчивость соединения реализованы.
 - `DONE` Этап 8: linkify parser и безопасный рендер ссылок в plain text сообщениях реализованы.
 - `DONE` Этап 9: единый context menu root, registry команд, keyboard navigation, outside close и touch long press реализованы.
 - `DONE` Этап 11: frontend-пагинация истории сообщений реализована: при открытии чата загружаются 50 последних сообщений, старые сообщения догружаются страницами по 50 при прокрутке к началу ленты.
 - `DONE` Этап 12: лента сообщений получила группировку по дням и авторам, sticky date-разделители, правое выравнивание своих сообщений и ограничение рабочей chat-колонки до 720px.
 - `DONE` Open Server Panel proxy для `chat.local` настроен: `/` идет на Vite, `/api`, `/health` и `/ws` идут на Fastify; HTTP/WS и HTTPS/WSS проверены.
 - `DONE` Admin approval UI добавлен в sidebar: админ может открыть список pending users, подтвердить или отклонить заявку.
+- `DONE` Frontend styles migrated from component `createStyles()` blocks to Sass partials; main UI components now use light DOM, `x-context-menu-root` keeps Shadow DOM isolation.
 
 ## Ближайший Фокус
 
@@ -135,7 +136,7 @@
 - `DONE` Сохранять сообщения в БД и обновлять `last_message_id`, `message_seq` и unread для других участников.
 - `DONE` Подключить frontend composer к WebSocket отправке.
 - `DONE` Реализовать read marks и сброс unread counters при чтении.
-- `DONE` Добавить frontend reconnect, bounded queue и повторную отправку неподтвержденных `message.send`.
+- `DONE` Добавить frontend reconnect, bounded queue, heartbeat/watchdog, online/offline handling и повторную отправку неподтвержденных `message.send`.
 
 ## Этап 8 - Message Rendering
 

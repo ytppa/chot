@@ -186,8 +186,10 @@ async function resolveCurrentUser(request: FastifyRequest): Promise<AuthUser | n
 - Интерфейс чата должен быть спокойным, плотным и удобным для повторного использования.
 - Не перегружать MVP декоративными элементами.
 - Для иконок использовать локальные Font Awesome Free SVG из `apps/web/public/vendor/fontawesome`, без CDN и внешних runtime-загрузок.
-- В компонентах подключать Font Awesome через общий helper `apps/web/src/utils/fontawesome.ts`, чтобы пути к SVG и mask-стили не размазывались по коду.
+- Mask-стили Font Awesome держать в `apps/web/src/styles/_icons.scss`, а в компонентах создавать декоративные иконки через общий helper `apps/web/src/utils/fontawesome.ts`.
 - Для кнопок держать единое поведение: hover слегка затемняет кнопку, keyboard focus показывается через заметный outline.
+- Основной UI держать в light DOM и стилизовать через SCSS в `apps/web/src/styles`; Shadow DOM использовать точечно, когда действительно нужна изоляция overlay/виджета.
+- Не возвращать CSS-in-JS через `style.textContent`/`createStyles()` для обычных UI-компонентов; новые визуальные правила добавлять в SCSS partials.
 - Админские frontend flows по возможности держать отдельно от общего app shell: API orchestration и state updates выносить в специализированные app controllers, а `x-app-shell` оставлять для композиции UI.
 - В мобильной версии возврат из ленты к списку чатов должен закрывать active chat на уровне состояния, а не только скрывать ленту CSS-ом; скрытая лента не должна получать новые сообщения и не должна вызывать read marks.
 - Для длинных списков сообщений заранее держать в голове будущую виртуализацию.
