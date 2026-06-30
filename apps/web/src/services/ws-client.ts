@@ -19,12 +19,21 @@ export type WebSocketClientOptions = {
   url?: string;
   reconnectInitialDelayMs?: number;
   reconnectMaxDelayMs?: number;
+  reconnectJitterRatio?: number;
+  maxReconnectAttempts?: number;
+  heartbeatIntervalMs?: number;
+  heartbeatTimeoutMs?: number;
   maxQueuedEvents?: number;
 };
 
 const DEFAULT_RECONNECT_INITIAL_DELAY_MS = 500;
 const DEFAULT_RECONNECT_MAX_DELAY_MS = 5000;
+const DEFAULT_RECONNECT_JITTER_RATIO = 0.25;
+const DEFAULT_MAX_RECONNECT_ATTEMPTS = 120;
+const DEFAULT_HEARTBEAT_INTERVAL_MS = 25000;
+const DEFAULT_HEARTBEAT_TIMEOUT_MS = 10000;
 const DEFAULT_MAX_QUEUED_EVENTS = 50;
+const HEARTBEAT_CLOSE_CODE = 4000;
 
 /**
  * Manages the browser WebSocket connection, reconnect, and idempotent message retries.
@@ -35,6 +44,14 @@ export class WebSocketClient {
   private readonly reconnectInitialDelayMs: number;
 
   private readonly reconnectMaxDelayMs: number;
+
+  private readonly reconnectJitterRatio: number;
+
+  private readonly maxReconnectAttempts: number;
+
+  private readonly heartbeatIntervalMs: number;
+
+  private readonly heartbeatTimeoutMs: number;
 
   private readonly maxQueuedEvents: number;
 
@@ -48,6 +65,14 @@ export class WebSocketClient {
 
   private reconnectTimer: ReturnType<typeof window.setTimeout> | null = null;
 
+  private heartbeatTimer: ReturnType<typeof window.setTimeout> | null = null;
+
+  private heartbeatTimeoutTimer: ReturnType<typeof window.setTimeout> | null = null;
+
+  private heartbeatPingId: string | null = null;
+
+  private isBrowserOnline = navigator.onLine;
+
   private readonly queuedEvents: ClientEventEnvelope[] = [];
 
   private readonly inFlightEvents = new Map<string, ClientEventEnvelope>();
@@ -60,7 +85,14 @@ export class WebSocketClient {
     this.url = options.url ?? createDefaultWebSocketUrl();
     this.reconnectInitialDelayMs = options.reconnectInitialDelayMs ?? DEFAULT_RECONNECT_INITIAL_DELAY_MS;
     this.reconnectMaxDelayMs = options.reconnectMaxDelayMs ?? DEFAULT_RECONNECT_MAX_DELAY_MS;
+    this.reconnectJitterRatio = options.reconnectJitterRatio ?? DEFAULT_RECONNECT_JITTER_RATIO;
+    this.maxReconnectAttempts = options.maxReconnectAttempts ?? DEFAULT_MAX_RECONNECT_ATTEMPTS;
+    this.heartbeatIntervalMs = options.heartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS;
+    this.heartbeatTimeoutMs = options.heartbeatTimeoutMs ?? DEFAULT_HEARTBEAT_TIMEOUT_MS;
     this.maxQueuedEvents = options.maxQueuedEvents ?? DEFAULT_MAX_QUEUED_EVENTS;
+
+    window.addEventListener('online', this.handleBrowserOnline);
+    window.addEventListener('offline', this.handleBrowserOffline);
   }
 
   /**
@@ -69,8 +101,17 @@ export class WebSocketClient {
   public connect(): void {
     this.shouldReconnect = true;
 
+    if (!this.isBrowserOnline) {
+      this.setState('reconnecting');
+      return;
+    }
+
     if (this.socket && this.socket.readyState !== WebSocket.CLOSED) {
       return;
+    }
+
+    if (this.state === 'closed' || this.state === 'idle') {
+      this.reconnectAttempt = 0;
     }
 
     this.openSocket(this.state === 'reconnecting' ? 'reconnecting' : 'connecting');
@@ -82,6 +123,7 @@ export class WebSocketClient {
   public disconnect(): void {
     this.shouldReconnect = false;
     this.clearReconnectTimer();
+    this.clearHeartbeat();
     this.queuedEvents.length = 0;
     this.inFlightEvents.clear();
 
@@ -92,6 +134,15 @@ export class WebSocketClient {
     }
 
     this.setState('closed');
+  }
+
+  /**
+   * Fully tears down the client when the owning shell is removed.
+   */
+  public dispose(): void {
+    this.disconnect();
+    window.removeEventListener('online', this.handleBrowserOnline);
+    window.removeEventListener('offline', this.handleBrowserOffline);
   }
 
   /**
@@ -161,7 +212,13 @@ export class WebSocketClient {
    * Opens a new socket and binds handlers that ignore stale socket instances.
    */
   private openSocket(nextState: WebSocketConnectionState): void {
+    if (!this.isBrowserOnline) {
+      this.setState('reconnecting');
+      return;
+    }
+
     this.clearReconnectTimer();
+    this.clearHeartbeat();
     this.setState(nextState);
 
     const socket = new WebSocket(this.url);
@@ -175,6 +232,7 @@ export class WebSocketClient {
       this.reconnectAttempt = 0;
       this.setState('open');
       this.flushPendingEvents();
+      this.startHeartbeat();
     });
 
     socket.addEventListener('message', (event) => {
@@ -191,6 +249,7 @@ export class WebSocketClient {
       }
 
       this.socket = null;
+      this.clearHeartbeat();
       this.handleClosedSocket();
     });
 
@@ -205,18 +264,28 @@ export class WebSocketClient {
    * Schedules the next reconnect attempt with a bounded exponential delay.
    */
   private handleClosedSocket(): void {
+    this.clearHeartbeat();
+
     if (!this.shouldReconnect) {
       this.setState('closed');
       return;
     }
 
-    this.setState('reconnecting');
-    this.reconnectAttempt += 1;
+    if (!this.isBrowserOnline) {
+      this.setState('reconnecting');
+      return;
+    }
 
-    const delay = Math.min(
-      this.reconnectMaxDelayMs,
-      this.reconnectInitialDelayMs * 2 ** Math.max(0, this.reconnectAttempt - 1)
-    );
+    const nextAttempt = this.reconnectAttempt + 1;
+    if (nextAttempt > this.maxReconnectAttempts) {
+      this.shouldReconnect = false;
+      this.setState('closed');
+      return;
+    }
+
+    this.setState('reconnecting');
+    this.reconnectAttempt = nextAttempt;
+    const delay = this.createReconnectDelay(nextAttempt);
 
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null;
@@ -289,6 +358,10 @@ export class WebSocketClient {
       return;
     }
 
+    if (parsedEvent.type === 'pong' && typeof parsedEvent.id === 'string') {
+      this.handleHeartbeatPong(parsedEvent.id);
+    }
+
     if (parsedEvent.type === 'message.ack' && typeof parsedEvent.id === 'string') {
       this.inFlightEvents.delete(parsedEvent.id);
     }
@@ -322,6 +395,153 @@ export class WebSocketClient {
 
     window.clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
+  }
+
+  /**
+   * Resets reconnect attempts and resumes the socket when the browser comes online.
+   */
+  private readonly handleBrowserOnline = (): void => {
+    this.isBrowserOnline = true;
+    if (!this.shouldReconnect) {
+      return;
+    }
+
+    this.reconnectAttempt = 0;
+    this.connect();
+  };
+
+  /**
+   * Suspends reconnect timers while the browser reports an offline network.
+   */
+  private readonly handleBrowserOffline = (): void => {
+    this.isBrowserOnline = false;
+    this.clearReconnectTimer();
+    this.clearHeartbeat();
+
+    if (!this.shouldReconnect) {
+      return;
+    }
+
+    const socket = this.socket;
+    if (socket && socket.readyState !== WebSocket.CLOSED) {
+      socket.close(1001, 'Browser offline');
+    }
+
+    this.setState('reconnecting');
+  };
+
+  /**
+   * Calculates bounded exponential backoff with small jitter to avoid reconnect bursts.
+   */
+  private createReconnectDelay(attempt: number): number {
+    const baseDelay = Math.min(
+      this.reconnectMaxDelayMs,
+      this.reconnectInitialDelayMs * 2 ** Math.max(0, attempt - 1)
+    );
+    const jitterRange = baseDelay * this.reconnectJitterRatio;
+    const jitter = (Math.random() * 2 - 1) * jitterRange;
+
+    return Math.max(0, Math.round(Math.min(this.reconnectMaxDelayMs, baseDelay + jitter)));
+  }
+
+  /**
+   * Starts the watchdog that verifies the socket still answers protocol pings.
+   */
+  private startHeartbeat(): void {
+    this.clearHeartbeat();
+    if (this.heartbeatIntervalMs <= 0 || this.heartbeatTimeoutMs <= 0) {
+      return;
+    }
+
+    this.scheduleHeartbeatPing();
+  }
+
+  /**
+   * Schedules the next heartbeat ping after the previous one was acknowledged.
+   */
+  private scheduleHeartbeatPing(): void {
+    this.clearHeartbeatTimer();
+    this.heartbeatTimer = window.setTimeout(() => {
+      this.heartbeatTimer = null;
+      this.sendHeartbeatPing();
+    }, this.heartbeatIntervalMs);
+  }
+
+  /**
+   * Sends one watchdog ping and closes the socket if the pong does not arrive.
+   */
+  private sendHeartbeatPing(): void {
+    if (this.socket?.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    const event: ClientEventEnvelope = {
+      id: createUuid(),
+      type: 'ping',
+      payload: {}
+    };
+
+    this.heartbeatPingId = event.id;
+    this.writeEvent(event);
+    this.clearHeartbeatTimeout();
+    this.heartbeatTimeoutTimer = window.setTimeout(() => {
+      if (this.heartbeatPingId !== event.id) {
+        return;
+      }
+
+      this.heartbeatPingId = null;
+      if (this.socket?.readyState === WebSocket.OPEN) {
+        this.socket.close(HEARTBEAT_CLOSE_CODE, 'Heartbeat timeout');
+      }
+    }, this.heartbeatTimeoutMs);
+  }
+
+  /**
+   * Marks the watchdog ping as healthy and arms the next check.
+   */
+  private handleHeartbeatPong(eventId: string): void {
+    if (eventId !== this.heartbeatPingId) {
+      return;
+    }
+
+    this.heartbeatPingId = null;
+    this.clearHeartbeatTimeout();
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      this.scheduleHeartbeatPing();
+    }
+  }
+
+  /**
+   * Clears all heartbeat timers and pending watchdog state.
+   */
+  private clearHeartbeat(): void {
+    this.clearHeartbeatTimer();
+    this.clearHeartbeatTimeout();
+    this.heartbeatPingId = null;
+  }
+
+  /**
+   * Clears the timer that sends the next heartbeat ping.
+   */
+  private clearHeartbeatTimer(): void {
+    if (this.heartbeatTimer === null) {
+      return;
+    }
+
+    window.clearTimeout(this.heartbeatTimer);
+    this.heartbeatTimer = null;
+  }
+
+  /**
+   * Clears the timeout waiting for the current heartbeat pong.
+   */
+  private clearHeartbeatTimeout(): void {
+    if (this.heartbeatTimeoutTimer === null) {
+      return;
+    }
+
+    window.clearTimeout(this.heartbeatTimeoutTimer);
+    this.heartbeatTimeoutTimer = null;
   }
 }
 
